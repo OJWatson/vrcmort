@@ -1,0 +1,68 @@
+---
+title: "Stress testing under different missingness mechanisms"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Stress testing under different missingness mechanisms}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## Missingness patterns implemented in `vrc_simulate`
+
+The `vrc_simulate()` function supports several additional missingness patterns on top of the explicit reporting model:
+
+- **Block dropout**: missing region-time blocks (for example, system outages) with probability driven by conflict intensity and facility functioning.
+- **Age-selective dropout**: preferential loss of older non-trauma deaths after conflict begins.
+- **MNAR overload**: missing-not-at-random dropout driven by true death burden.
+
+These mechanisms are designed to mimic failure modes commonly seen in VR and facility-based data streams.
+
+## Compare scenarios
+
+```{r}
+library(vrcmort)
+
+base <- vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = "none"))
+block <- vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = "block", block_intercept = -1.5))
+age <- vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = "age_selective", age_dropout_strength = 1.0, age_dropout_old_from = 6))
+combo <- vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = "combined", block_intercept = -2.0, age_dropout_strength = 1.0, mnar_strength = 1.0))
+
+c(
+  base = mean(is.na(base$df_full$y)),
+  block = mean(is.na(block$df_full$y)),
+  age = mean(is.na(age$df_full$y)),
+  combo = mean(is.na(combo$df_full$y))
+)
+```
+
+## Fitting and evaluation
+
+A typical stress-test workflow is:
+
+1. simulate a scenario,
+2. fit the model,
+3. compare inferred reporting collapse and latent mortality to truth.
+
+```{r, eval=FALSE}
+fit <- vrc_fit(
+  data = combo$df_obs,
+  t0 = combo$meta$t0,
+  mortality_covariates = ~ facility,
+  reporting_covariates = ~ facility,
+  chains = 4,
+  iter = 1000,
+  seed = 1
+)
+
+plot_reporting(fit)
+plot_mortality(fit, value = "true_deaths")
+```

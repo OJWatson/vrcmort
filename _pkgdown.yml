@@ -1,0 +1,52 @@
+url: https://example.org/vrcmort
+template:
+  bootstrap: 5
+
+reference:
+- title: Model fitting
+  contents:
+  - vrc_fit
+  - vrcm
+  - vrc_standata
+  - vrc_model
+  - vrc_mortality
+  - vrc_reporting
+  - vrc_priors
+- title: Data preparation
+  contents:
+  - vrc_validate_data
+  - vrc_index
+  - vrc_diagnose_reporting
+  - vrc_canonical_columns
+- title: Simulation
+  contents:
+  - vrc_simulate
+  - simulate_vr_data
+- title: Posterior extraction
+  contents:
+  - posterior_reporting
+  - posterior_mortality
+  - posterior_expected_counts
+  - posterior_predict
+  - vrc_coef_summary
+  - vrc_conflict_effects
+- title: Plots
+  contents:
+  - plot_reporting
+  - plot_mortality
+
+articles:
+- title: Model
+  contents:
+  - model-introduction
+  - model-description
+  - model-implementation
+  - model-schematic
+  - partial-pooling
+  - priors
+  - underreporting-age
+- title: Tutorials
+  contents:
+  - tutorial-data-prep
+  - tutorial-covariates-pooling
+  - missingness

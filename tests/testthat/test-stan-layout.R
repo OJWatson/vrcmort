@@ -1,0 +1,25 @@
+test_that("Stan model include files are present", {
+  base <- system.file("stan", "vr_reporting_model.stan", package = "vrcmort")
+  expect_true(file.exists(base))
+
+  # Expected include files
+  inc_files <- c(
+    "include/license.stan",
+    "functions/rw1_centered.stan",
+    "data/data_vr.stan",
+    "parameters/parameters_vr.stan",
+    "tparameters/tparameters_vr.stan",
+    "model/priors_vr.stan",
+    "model/likelihood_vr_nb2.stan",
+    "generated_quantities/gq_vr.stan"
+  )
+
+  for (f in inc_files) {
+    path <- system.file("stan", f, package = "vrcmort")
+    expect_true(file.exists(path), info = paste("Missing", f))
+  }
+
+  txt <- paste(readLines(base, warn = FALSE), collapse = "\n")
+  expect_true(grepl("#include \\\"functions/rw1_centered\\.stan\\\"", txt, fixed = FALSE))
+  expect_true(grepl("#include \\\"data/data_vr\\.stan\\\"", txt, fixed = FALSE))
+})

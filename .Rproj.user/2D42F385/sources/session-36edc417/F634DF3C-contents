@@ -1,0 +1,42 @@
+Package: vrcmort
+Title: Hierarchical Bayesian Models for Vital Registration Mortality with Reporting Processes
+Version: 0.0.7
+Authors@R: c(
+    person(given = "vrcmort",
+           family = "Developers",
+           role = c("aut", "cre"),
+           email = "vrcmort@users.noreply.github.com")
+           )
+Description: Tools for fitting hierarchical Bayesian models to cause-specific
+    vital registration (VR) mortality counts in settings where the VR reporting
+    mechanism changes over time (for example, during armed conflict). The core
+    model separates a latent mortality process from an observation (reporting)
+    process, allowing conflict to simultaneously increase true mortality while
+    reducing registration completeness in a cause- and age-selective way. The
+    package includes a realistic simulator with multiple missingness mechanisms
+    for stress-testing inference.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 3.6.0)
+Imports:
+    stats,
+    utils,
+    rstan (>= 2.18.1),
+    ggplot2,
+    dplyr,
+    rlang
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    posterior,
+    bayesplot,
+    loo
+VignetteBuilder: knitr
+URL: https://github.com/vrcmort/vrcmort
+BugReports: https://github.com/vrcmort/vrcmort/issues
+Config/testthat/edition: 3

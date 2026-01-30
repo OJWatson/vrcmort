@@ -1,0 +1,11 @@
+citHeader("To cite vrcmort in publications please use:")
+
+citEntry(
+  entry    = "Manual",
+  title    = "vrcmort: Hierarchical Bayesian Models for Vital Registration Mortality with Reporting Processes",
+  author   = personList(person("TODO", "TODO")),
+  year     = "2026",
+  note     = "R package version 0.0.1",
+  textVersion =
+    "TODO TODO (2026). vrcmort: Hierarchical Bayesian Models for Vital Registration Mortality with Reporting Processes. R package version 0.0.1"
+)

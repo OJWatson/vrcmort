@@ -1,0 +1,124 @@
+---
+title: "Model Introduction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Model Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## Why this package exists
+
+In conflict-affected settings, vital registration (VR) can continue to record some deaths (for example, trauma deaths reaching facilities) while *simultaneously* becoming less complete for other types of death (for example, chronic disease deaths among older adults).
+
+If you fit a standard regression model to *observed* VR counts and include conflict intensity as a covariate, it is easy to get the wrong sign: the model may suggest that conflict reduces non-trauma mortality. In reality the *reporting mechanism* has changed.
+
+`vrcmort` addresses this by modelling two linked components:
+
+- a latent mortality process, which governs the deaths that truly occur, and
+- an observation (reporting) process, which governs which of those deaths make it into the VR system.
+
+The key idea is that conflict can increase true mortality while reducing reporting completeness at the same time.
+
+## What data do you need?
+
+`vrcmort` expects death counts in a canonical long format with one row per cell, typically at the region-month level. A minimal row corresponds to:
+
+- `region`, `time` (for example, month index)
+- `age`, `sex`
+- `cause` (for example, trauma vs non-trauma)
+- `y`: observed VR death count
+- `exposure`: person-time at risk (often population for a full month, or population multiplied by days covered)
+- `conflict`: a region-time conflict proxy (for example, an ACLED-derived intensity measure)
+
+Additional covariates (facility functioning, food insecurity, WASH indicators) can be included in either the mortality or reporting submodel.
+
+## Quick start on simulated data
+
+Simulation is fast and can be used to understand model behaviour before you fit to real data.
+
+```{r}
+library(vrcmort)
+
+sim <- vrc_simulate(
+  R = 5,
+  T = 60,
+  t0 = 25,
+  seed = 123,
+  missing = list(type = "combined", block_intercept = -2.0, mnar_strength = 1.0)
+)
+
+head(sim$df_obs)
+```
+
+Before fitting, it is usually worth checking whether the VR series shows obvious reporting artefacts.
+
+```{r, eval=FALSE}
+diag <- vrc_diagnose_reporting(sim$df_obs, t0 = sim$meta$t0)
+diag$tables$totals_time
+
+diag$plots$by_cause
+```
+
+## Fit the model
+
+The model is fit with Stan via `rstan`. For an epidemia-like interface, use `vrcm()` with explicit mortality and reporting components.
+
+```{r, eval=FALSE}
+# Basic model: no additional covariates beyond the built-in conflict proxy
+mort <- vrc_mortality(~ 1)
+rep  <- vrc_reporting(~ 1)
+
+fit <- vrcm(
+  mortality = mort,
+  reporting = rep,
+  data = sim$df_obs,
+  t0 = sim$meta$t0,
+  chains = 4,
+  iter = 1000,
+  seed = 123
+)
+
+print(fit)
+```
+
+You can include additional covariates beyond conflict (which is always included in the core Stan model):
+
+```{r, eval=FALSE}
+mort2 <- vrc_mortality(~ facility + food_insecurity)
+rep2  <- vrc_reporting(~ facility)
+
+fit2 <- vrcm(
+  mortality = mort2,
+  reporting = rep2,
+  data = sim$df_obs,
+  t0 = sim$meta$t0,
+  chains = 4,
+  iter = 1000,
+  seed = 123
+)
+
+vrc_coef_summary(fit2)
+```
+
+## Where to go next
+
+This vignette is a quick orientation. The next vignettes go step-by-step through the mathematics and the modelling decisions:
+
+- **Model Description**: the full probabilistic model, with equations and interpretation.
+- **Model Implementation**: how VR long data becomes Stan data, and how formulas map to model matrices.
+- **Model Schematic**: a diagram of the latent mortality and reporting processes.
+- **Partial Pooling**: modelling region-varying conflict effects and region-specific time trends.
+- **Priors**: practical prior choices and how to override them with `vrc_priors()`.
+- **Under-reporting and Age Structure**: how the age distribution helps identify reporting collapse.
+
+There are also tutorial vignettes showing how to prepare VR long data from individual-level death records and how to run common model comparison workflows.

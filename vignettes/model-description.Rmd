@@ -1,0 +1,195 @@
+---
+title: "Model Description"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Model Description}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## Overview
+
+`vrcmort` implements a hierarchical Bayesian model for vital registration (VR) mortality counts in settings where the *reporting mechanism changes over time*.
+
+The core idea is to distinguish:
+
+1. the **latent mortality process** (the deaths that truly occur), and
+2. the **reporting process** (the probability that those deaths are recorded in VR).
+
+This separation is essential when conflict simultaneously increases mortality and reduces the completeness of registration.
+
+Throughout this vignette we describe the model in a generative way. In code, the model is fit in Stan.
+
+## Notation and indices
+
+We index:
+
+- region by $r \in \{1, \ldots, R\}$
+- time (usually month) by $t \in \{1, \ldots, T\}$
+- age group by $a \in \{1, \ldots, A\}$
+- sex by $s \in \{1, \ldots, S\}$
+- cause group by $g \in \{1, \ldots, G\}$
+
+For many conflict applications you will start with $G=2$:
+
+- $g=1$: trauma / violence-related
+- $g=2$: non-trauma
+
+The model is written at the cell level $(r,t,a,s,g)$ and the R interface expects the data to be aggregated into this long format.
+
+## Observed data
+
+For each cell we observe:
+
+- $Y_{r,t,a,s,g}$: the number of deaths recorded in VR
+- $E_{r,t,a,s}$: the exposure (person-time at risk)
+
+We also observe region-time covariates. Two are central:
+
+- $x_{r,t}$: a conflict intensity proxy
+- $z_{r,t}$: a health system functioning proxy (for example, facility availability)
+
+Additional covariates can be added in the mortality submodel and/or the reporting submodel.
+
+### Exposure
+
+Exposure is whatever scale makes your rates interpretable and comparable across cells.
+
+- If you work with month-level counts and every month is fully covered, you can use $E_{r,t,a,s} = N_{r,t,a,s}$ (population).
+- If periods have different lengths, or if VR was operational for only part of a period, you can use person-time, for example $E_{r,t,a,s} = N_{r,t,a,s} \times \text{days\_covered}$.
+
+In `vrcmort` the expected count is proportional to exposure.
+
+## Latent mortality process
+
+Let $\lambda_{r,t,a,s,g} > 0$ be the **true death rate** (per unit exposure) in a cell.
+
+A simple generative story is:
+
+\[
+D_{r,t,a,s,g} \mid \lambda_{r,t,a,s,g} \sim \text{Poisson}\big(E_{r,t,a,s} \cdot \lambda_{r,t,a,s,g}\big),
+\]
+
+where $D_{r,t,a,s,g}$ is the number of true deaths.
+
+In practice, VR counts often show more variation than a Poisson model. `vrcmort` therefore uses a negative binomial observation model (see below), which can be understood as a Poisson model with extra over-dispersion.
+
+### Log-linear model for the rate
+
+We model the log rate as a structured additive predictor:
+
+\[
+\log \lambda_{r,t,a,s,g} = \alpha_{0,g} + \alpha^{(age)}_{a,g} + \alpha^{(sex)}_{s,g} + u^{(\lambda)}_{r,g} + v^{(\lambda)}_{t,g} + \beta_{conf,g} \, x_{r,t} + \mathbf{x}^{(mort)}_{r,t}{}^\top \boldsymbol{\beta}^{(mort)}_{g}.
+\]
+
+Interpretation of terms:
+
+- $\alpha_{0,g}$: baseline log rate for cause $g$
+- $\alpha^{(age)}_{a,g}$: age pattern for cause $g$
+- $\alpha^{(sex)}_{s,g}$: sex effect for cause $g$
+- $u^{(\lambda)}_{r,g}$: region random intercept (partial pooling)
+- $v^{(\lambda)}_{t,g}$: national time random walk (smooth temporal variation)
+- $\beta_{conf,g}$: effect of conflict intensity on the true rate
+- $\boldsymbol{\beta}^{(mort)}_{g}$: additional mortality covariate effects
+
+The conflict effect in the default model is constrained to be non-negative:
+
+\[
+\beta_{conf,g} \ge 0.
+\]
+
+This is a deliberate guardrail against the common artefact where a regression on observed VR counts concludes that conflict reduces mortality.
+
+## Reporting process (registration completeness)
+
+Let $\rho_{r,t,a,s,g} \in (0,1)$ be the probability that a true death in a cell is recorded in VR.
+
+A natural generative step is binomial thinning:
+
+\[
+Y^\ast_{r,t,a,s,g} \mid D_{r,t,a,s,g}, \rho_{r,t,a,s,g} \sim \text{Binomial}\big(D_{r,t,a,s,g},\, \rho_{r,t,a,s,g}\big),
+\]
+
+where $Y^\ast$ would be the number of observed deaths if causes were perfectly classified. In the base model we do not explicitly model misclassification; instead we recommend starting with robust cause groupings (for example trauma vs non-trauma).
+
+### Logistic model for completeness
+
+We model the logit of completeness:
+
+\[
+\text{logit}(\rho_{r,t,a,s,g}) = \kappa_{0,g} + \kappa_{post,g} \cdot \text{post}_t + u^{(\rho)}_{r,g} + v^{(\rho)}_{t,g} + \gamma_{conf,g} \, x_{r,t} + \mathbf{x}^{(rep)}_{r,t}{}^\top \boldsymbol{\gamma}^{(rep)}_{g} + \text{agepen}(a,g,t).
+\]
+
+Key pieces:
+
+- $\kappa_{0,g}$: baseline completeness (pre-conflict) for cause $g$
+- $\kappa_{post,g}$: a shift in completeness after conflict begins
+- $u^{(\rho)}_{r,g}$: region random intercept for completeness
+- $v^{(\rho)}_{t,g}$: national time random walk for completeness
+- $\gamma_{conf,g}$: effect of conflict on completeness
+- $\boldsymbol{\gamma}^{(rep)}_{g}$: additional reporting covariate effects
+
+The indicator $\text{post}_t$ is 0 before the conflict start time $t_0$ and 1 afterwards.
+
+### Age-selective reporting collapse
+
+A distinctive feature of conflict VR data is that completeness can become age-selective: older deaths (especially non-trauma) drop out of the system.
+
+`vrcmort` represents this with an age penalty applied after conflict starts, typically only for non-trauma causes:
+
+\[
+\text{agepen}(a,g,t) = - \delta_a \cdot \mathbb{1}[g = \text{non-trauma}] \cdot \text{post}_t,
+\]
+
+where $\delta_a \ge 0$ is a monotone non-decreasing function of age group. In the Stan model this is implemented by modelling positive increments between age groups.
+
+The result is that, after conflict begins, the model allows the observed VR age distribution to shift younger even when the underlying mortality age schedule remains broadly similar.
+
+## Observation model for VR counts
+
+The model used for fitting is a negative binomial likelihood on the observed counts:
+
+\[
+Y_{r,t,a,s,g} \sim \text{NegBin2}(\mu_{r,t,a,s,g},\, \phi_g),
+\]
+
+with
+
+\[
+\mu_{r,t,a,s,g} = E_{r,t,a,s} \cdot \lambda_{r,t,a,s,g} \cdot \rho_{r,t,a,s,g}.
+\]
+
+The parameter $\phi_g > 0$ is a cause-specific dispersion parameter.
+
+This single likelihood implicitly marginalises over the latent true deaths $D$. You can still interpret the model generatively as "true deaths occur" then "some are recorded".
+
+## Identifiability and anchoring
+
+From the likelihood alone, $\lambda$ and $\rho$ are only weakly identified because they appear as a product $\lambda \cdot \rho$.
+
+`vrcmort` uses several sources of information to separate them:
+
+1. **Pre-conflict behaviour**: if VR looks stable pre-conflict, it is reasonable to place informative priors on baseline completeness $\kappa_{0,g}$.
+2. **Age structure**: age-selective collapse is informative about reporting rather than mortality.
+3. **Smoothness**: random walk priors on time effects discourage implausibly sharp swings in the latent mortality rate.
+4. **Covariate separation**: covariates believed to reflect system functioning are more naturally placed in the reporting model than the mortality model.
+
+The priors are therefore not an afterthought; they are part of what makes inference possible.
+
+## Extensions supported in the current base model
+
+The base Stan program shipped with `vrcmort` includes optional structured extensions controlled by the R interface:
+
+- **Region-varying conflict effects**: partial pooling for the conflict coefficient by region.
+- **Region-specific time trends**: region-specific random walks around a national trend.
+
+Other extensions (misclassification between cause groups, population uncertainty, additional observation streams) can be added by extending the Stan components. The vignette on implementation explains how the Stan code is modularised.

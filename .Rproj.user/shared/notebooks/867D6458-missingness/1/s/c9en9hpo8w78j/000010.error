@@ -1,0 +1,1 @@
+{"frames":[{"func":"vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = \"block\", \n    block_intercept = -1.5))","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Error in block_drop[r, t] <- (stats::runif(1) < p) : \n  replacement has length zero\n"}

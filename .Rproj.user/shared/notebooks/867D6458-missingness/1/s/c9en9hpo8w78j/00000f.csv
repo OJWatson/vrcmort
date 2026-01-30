@@ -1,0 +1,5 @@
+"0","block <- vrc_simulate(R = 5, T = 48, t0 = 20, seed = 1, missing = list(type = ""block"", block_intercept = -1.5))
+"
+"2","Error in block_drop[r, t] <- (stats::runif(1) < p) : 
+  replacement has length zero
+"
