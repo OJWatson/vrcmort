@@ -51,5 +51,5 @@ fit3 <- vrcm(
 )
 
 # 3) Summarise and plot reporting completeness
-summary(fit)
-plot_reporting(fit)
+summary(fit0)
+plot_reporting(fit0)
