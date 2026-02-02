@@ -12,6 +12,7 @@
 #' for stress testing inference.
 #'
 #' @name vrcmort-package
+#' @keywords internal
 #' @aliases vrcmort
 NULL
 

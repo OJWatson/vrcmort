@@ -1,4 +1,4 @@
-url: https://example.org/vrcmort
+url: https://github.com/OJWatson/vrcmort
 template:
   bootstrap: 5
 
@@ -21,15 +21,23 @@ reference:
 - title: Simulation
   contents:
   - vrc_simulate
-  - simulate_vr_data
+  - vrc_sim_truth
 - title: Posterior extraction
   contents:
   - posterior_reporting
   - posterior_mortality
   - posterior_expected_counts
   - posterior_predict
+  - vrc_prior_summary
   - vrc_coef_summary
   - vrc_conflict_effects
+- title: Building new models
+  contents:
+  - exponential
+  - normal
+  - vrc_model_names
+  - vrc_model_spec
+  - vrc_write_stan_template
 - title: Plots
   contents:
   - plot_reporting

@@ -15,3 +15,4 @@ observed non-trauma VR counts can decline because reporting collapses.
 The package also includes a simulator with multiple missingness mechanisms
 for stress testing inference.
 }
+\keyword{internal}

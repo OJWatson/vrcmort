@@ -159,16 +159,3 @@ summary.vrcfit <- function(object, pars = c("beta_conf", "kappa0", "kappa_post",
   s <- rstan::summary(object$stanfit, pars = pars, ...)$summary
   s
 }
-
-#' Extract posterior draws as a matrix
-#'
-#' @param x A `vrcfit` object.
-#' @param pars Optional character vector of parameter names.
-#' @param ... Passed to `rstan::as.matrix.stanfit`.
-#' @export
-as.matrix.vrcfit <- function(x, pars = NULL, ...) {
-  if (!requireNamespace("rstan", quietly = TRUE)) {
-    stop("Package 'rstan' is required", call. = FALSE)
-  }
-  as.matrix(x$stanfit, pars = pars, ...)
-}
