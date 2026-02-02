@@ -29,7 +29,8 @@ Imports:
     ggplot2,
     dplyr,
     rlang, 
-    BH
+    BH,
+    RcppEigen
 Suggests:
     testthat (>= 3.0.0),
     knitr,
