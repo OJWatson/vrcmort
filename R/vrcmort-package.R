@@ -22,5 +22,7 @@ NULL
   # Avoid hard dependency on rstan at load time; only set options if available.
   if (requireNamespace("rstan", quietly = TRUE)) {
     rstan::rstan_options(auto_write = TRUE)
+    requireNamespace("BH", quietly = TRUE)
+    requireNamespace("RcppEigen", quietly = TRUE)
   }
 }

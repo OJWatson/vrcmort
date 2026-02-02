@@ -28,13 +28,9 @@ Imports:
     rstan (>= 2.18.1),
     ggplot2,
     dplyr,
-    rlang
-LinkingTo: 
-    BH (>= 1.66.0),
-    Rcpp (>= 0.12.0),
-    RcppEigen (>= 0.3.3.3.0),
-    rstan (>= 2.18.1),
-    StanHeaders (>= 2.18.0)
+    rlang, 
+    BH, 
+    RcppEigen
 Suggests:
     testthat (>= 3.0.0),
     knitr,
