@@ -2,10 +2,10 @@ Package: vrcmort
 Title: Hierarchical Bayesian Models for Vital Registration Mortality with Reporting Processes
 Version: 0.0.7
 Authors@R: c(
-    person(given = "vrcmort",
-           family = "Developers",
+    person(given = "OJ",
+           family = "Watson",
            role = c("aut", "cre"),
-           email = "vrcmort@users.noreply.github.com")
+           email = "o.watson15@imperial.ac.uk")
            )
 Description: Tools for fitting hierarchical Bayesian models to cause-specific
     vital registration (VR) mortality counts in settings where the VR reporting
@@ -15,7 +15,7 @@ Description: Tools for fitting hierarchical Bayesian models to cause-specific
     reducing registration completeness in a cause- and age-selective way. The
     package includes a realistic simulator with multiple missingness mechanisms
     for stress-testing inference.
-License: GPL-3
+License: MIT
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
@@ -28,7 +28,8 @@ Imports:
     rstan (>= 2.18.1),
     ggplot2,
     dplyr,
-    rlang
+    rlang, 
+    BH
 Suggests:
     testthat (>= 3.0.0),
     knitr,
@@ -37,6 +38,6 @@ Suggests:
     bayesplot,
     loo
 VignetteBuilder: knitr
-URL: https://github.com/vrcmort/vrcmort
-BugReports: https://github.com/vrcmort/vrcmort/issues
+URL: https://github.com/OJWatson/vrcmort
+BugReports: https://github.com/OJWatson/vrcmort/issues
 Config/testthat/edition: 3
