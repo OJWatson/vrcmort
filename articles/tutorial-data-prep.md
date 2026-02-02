@@ -1,0 +1,170 @@
+# Tutorial: preparing VR long data from individual records
+
+## Goal
+
+This tutorial shows a practical template for turning individual-level VR
+death records into the **canonical VR long format** expected by
+`vrcmort`.
+
+The assumed inputs are:
+
+- `deaths_individual`: one row per death with region, month, age, sex,
+  and ICD-10 (possibly missing)
+- `pop`: region-month-age-sex population (possibly after applying
+  displacement updates)
+- `covariates_rt`: region-month covariates such as conflict intensity
+  and facility functioning
+
+The output is a data frame with one row per
+`(region, time, age, sex, cause)` cell.
+
+## Step 0: choose age groups and cause groups
+
+`vrcmort` works best when you start with a small number of robust cause
+groups.
+
+A common starting point for conflict settings is:
+
+- cause 1: trauma / violence-related
+- cause 2: non-trauma
+
+For age, start with bins that are stable and have enough data. For
+example: `0-4`, `5-14`, …, `65+`.
+
+## Step 1: classify ICD-10 into trauma vs non-trauma
+
+Below is a simple helper. You will almost certainly want to customise it
+for your coding practices.
+
+``` r
+icd_to_cause <- function(icd10) {
+  icd10 <- toupper(trimws(icd10))
+  # Missing or empty code
+  if (is.na(icd10) || icd10 == "") return(NA_character_)
+
+  # Very rough trauma proxy: External causes (V-Y) in ICD-10
+  if (grepl("^[VWXY]", icd10)) return("trauma")
+
+  "non_trauma"
+}
+```
+
+Notes:
+
+- Some teams prefer a narrower definition of violence (for example
+  X85-Y09 plus Y35-Y36) and treat accidents separately.
+- If you have a large share of missing or ill-defined ICD codes, you may
+  want an additional cause group (requires a model extension).
+
+## Step 2: bin ages
+
+``` r
+cut_age <- function(age_years) {
+  cut(
+    age_years,
+    breaks = c(-Inf, 4, 14, 24, 34, 44, 54, 64, Inf),
+    labels = c("0-4","5-14","15-24","25-34","35-44","45-54","55-64","65+"),
+    right = TRUE
+  )
+}
+```
+
+## Step 3: aggregate individual deaths into VR long counts
+
+``` r
+library(dplyr)
+
+vr_counts <- deaths_individual %>%
+  mutate(
+    time = month_id,  # or convert calendar month to an index
+    age = cut_age(age_years),
+    cause = vapply(icd10, icd_to_cause, character(1)),
+    sex = factor(sex, levels = c("F","M"))
+  ) %>%
+  filter(!is.na(cause), !is.na(age), !is.na(sex)) %>%
+  mutate(cause = if_else(cause == "trauma", "trauma", "non_trauma")) %>%
+  group_by(region, time, age, sex, cause) %>%
+  summarise(y = n(), .groups = "drop")
+```
+
+At this stage you have observed counts `y` but not yet the exposure or
+covariates.
+
+## Step 4: join population and compute exposure
+
+`vrcmort` expects an `exposure` column. For region-month data where each
+month is fully covered and populations are month-specific, using
+exposure equal to population is fine.
+
+``` r
+# pop should contain: region, time, age, sex, pop
+vr_long <- vr_counts %>%
+  left_join(pop, by = c("region","time","age","sex")) %>%
+  mutate(exposure = pop)
+```
+
+If you have partial coverage of a month (for example VR operational for
+only some days), you can incorporate that:
+
+``` r
+# Suppose coverage_fraction is in [0,1] for each region-month
+vr_long <- vr_long %>%
+  left_join(covariates_rt %>% select(region, time, coverage_fraction), by = c("region","time")) %>%
+  mutate(exposure = pop * coverage_fraction)
+```
+
+## Step 5: join region-month covariates
+
+``` r
+# covariates_rt should contain: region, time, conflict, facility, etc
+vr_long <- vr_long %>%
+  left_join(covariates_rt, by = c("region","time"))
+```
+
+At minimum you need a `conflict` variable.
+
+## Step 6: ensure factor levels are stable
+
+`vrcmort` converts identifiers into indices. It is safest to make
+`region`, `age`, `sex`, and `cause` explicit factors with stable levels.
+
+``` r
+vr_long <- vr_long %>%
+  mutate(
+    region = factor(region),
+    age = factor(age, ordered = TRUE),
+    sex = factor(sex),
+    cause = factor(cause, levels = c("trauma","non_trauma"))
+  )
+```
+
+## Step 7: validate and diagnose
+
+``` r
+library(vrcmort)
+
+vrc_validate_data(vr_long)
+
+diag <- vrc_diagnose_reporting(vr_long, t0 = conflict_start_month)
+diag$plots$by_cause
+```
+
+## Step 8: fit a first model
+
+Start simple.
+
+``` r
+fit <- vrcm(
+  mortality = vrc_mortality(~ 1),
+  reporting = vrc_reporting(~ 1),
+  data = vr_long,
+  t0 = conflict_start_month,
+  chains = 4,
+  iter = 1000
+)
+
+plot(fit, type = "reporting")
+plot(fit, type = "mortality", value = "true_deaths")
+```
+
+Then explore covariates and pooling using the second tutorial vignette.
