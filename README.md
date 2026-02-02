@@ -1,5 +1,7 @@
 # vrcmort
 
+[Deep Wiki Website](https://deepwiki.com/OJWatson/vrcmort)
+
 `vrcmort` provides tools for fitting hierarchical Bayesian models to vital
 registration (VR) mortality counts when the VR reporting mechanism changes over
 space and time (for example, during armed conflict).
