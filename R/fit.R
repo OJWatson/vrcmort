@@ -102,7 +102,9 @@ vrc_fit <- function(
   }
 
   # default init_r helps avoid extreme initialisation
-  if (is.null(dots$init_r)) dots$init_r <- 1e-6
+  if (is.null(dots$init_r)) {
+    dots$init_r <- 1e-6
+  }
 
   args <- c(
     dots,
@@ -143,16 +145,34 @@ vrc_fit <- function(
 print.vrcfit <- function(x, ...) {
   cat("vrcmort model fit\n")
   cat("- Stan model:", x$stan_model, "\n")
-  if (!is.null(x$stan_file)) cat("- Stan file:", x$stan_file, "\n")
+  if (!is.null(x$stan_file)) {
+    cat("- Stan file:", x$stan_file, "\n")
+  }
   cat("- Algorithm:", x$algorithm, "\n")
   cat("- N (observed cells):", x$standata$N, "\n")
-  cat("- Dimensions: R=", x$standata$R, ", T=", x$standata$T, ", A=", x$standata$A,
-      ", S=", x$standata$S, ", G=", x$standata$G, "\n", sep = "")
+  cat(
+    "- Dimensions: R=",
+    x$standata$R,
+    ", T=",
+    x$standata$T,
+    ", A=",
+    x$standata$A,
+    ", S=",
+    x$standata$S,
+    ", G=",
+    x$standata$G,
+    "\n",
+    sep = ""
+  )
   invisible(x)
 }
 
 #' @export
-summary.vrcfit <- function(object, pars = c("beta_conf", "kappa0", "kappa_post", "gamma_conf", "phi"), ...) {
+summary.vrcfit <- function(
+  object,
+  pars = c("beta_conf", "kappa0", "kappa_post", "gamma_conf", "phi"),
+  ...
+) {
   if (!requireNamespace("rstan", quietly = TRUE)) {
     stop("Package 'rstan' is required", call. = FALSE)
   }

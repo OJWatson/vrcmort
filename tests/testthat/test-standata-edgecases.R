@@ -4,8 +4,8 @@ test_that("vrc_standata handles K_mort=0 and K_rep=0", {
   sdat <- vrc_standata(
     data = sim$df_obs,
     t0 = sim$meta$t0,
-    mortality_covariates = ~ 1,
-    reporting_covariates = ~ 1
+    mortality_covariates = ~1,
+    reporting_covariates = ~1
   )
 
   expect_equal(sdat$standata$K_mort, 0)

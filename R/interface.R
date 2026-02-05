@@ -22,9 +22,11 @@
 #'
 #' @return An object of class `vrc_mortality`.
 #' @export
-vrc_mortality <- function(formula = ~ 1,
-                         conflict = c("fixed", "region"),
-                         time = c("national", "region")) {
+vrc_mortality <- function(
+  formula = ~1,
+  conflict = c("fixed", "region"),
+  time = c("national", "region")
+) {
   if (!inherits(formula, "formula")) {
     stop("formula must be a formula", call. = FALSE)
   }
@@ -32,7 +34,10 @@ vrc_mortality <- function(formula = ~ 1,
   conflict <- match.arg(conflict)
   time <- match.arg(time)
 
-  structure(list(formula = formula, conflict = conflict, time = time), class = "vrc_mortality")
+  structure(
+    list(formula = formula, conflict = conflict, time = time),
+    class = "vrc_mortality"
+  )
 }
 
 #' Reporting model component specification
@@ -57,9 +62,11 @@ vrc_mortality <- function(formula = ~ 1,
 #'
 #' @return An object of class `vrc_reporting`.
 #' @export
-vrc_reporting <- function(formula = ~ 1,
-                         conflict = c("fixed", "region"),
-                         time = c("national", "region")) {
+vrc_reporting <- function(
+  formula = ~1,
+  conflict = c("fixed", "region"),
+  time = c("national", "region")
+) {
   if (!inherits(formula, "formula")) {
     stop("formula must be a formula", call. = FALSE)
   }
@@ -67,7 +74,10 @@ vrc_reporting <- function(formula = ~ 1,
   conflict <- match.arg(conflict)
   time <- match.arg(time)
 
-  structure(list(formula = formula, conflict = conflict, time = time), class = "vrc_reporting")
+  structure(
+    list(formula = formula, conflict = conflict, time = time),
+    class = "vrc_reporting"
+  )
 }
 
 #' Fit a VR mortality + reporting model
@@ -95,14 +105,20 @@ vrc_reporting <- function(formula = ~ 1,
 #' @return A `vrcfit` object, or (if `chains = 0`) a standata bundle returned
 #'   by [vrc_standata()].
 #' @export
-vrcm <- function(mortality = vrc_mortality(~ 1),
-                 reporting = vrc_reporting(~ 1),
-                 data,
-                 t0,
-                 priors = NULL,
-                 ...) {
-  if (inherits(mortality, "formula")) mortality <- vrc_mortality(mortality)
-  if (inherits(reporting, "formula")) reporting <- vrc_reporting(reporting)
+vrcm <- function(
+  mortality = vrc_mortality(~1),
+  reporting = vrc_reporting(~1),
+  data,
+  t0,
+  priors = NULL,
+  ...
+) {
+  if (inherits(mortality, "formula")) {
+    mortality <- vrc_mortality(mortality)
+  }
+  if (inherits(reporting, "formula")) {
+    reporting <- vrc_reporting(reporting)
+  }
 
   if (!inherits(mortality, "vrc_mortality")) {
     stop("mortality must be a vrc_mortality object or a formula", call. = FALSE)
@@ -150,8 +166,14 @@ vrcm <- function(mortality = vrc_mortality(~ 1),
 #'
 #' @return A data.frame.
 #' @export
-vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE) {
-  if (!inherits(x, "vrcfit")) stop("x must be a vrcfit object", call. = FALSE)
+vrc_coef_summary <- function(
+  x,
+  probs = c(0.1, 0.5, 0.9),
+  original_scale = FALSE
+) {
+  if (!inherits(x, "vrcfit")) {
+    stop("x must be a vrcfit object", call. = FALSE)
+  }
   if (!requireNamespace("rstan", quietly = TRUE)) {
     stop("Package 'rstan' is required", call. = FALSE)
   }
@@ -160,8 +182,12 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
   K_rep <- x$standata$K_rep
 
   pars <- c("beta_conf", "gamma_conf")
-  if (K_mort > 0) pars <- c(pars, "beta_mort")
-  if (K_rep > 0) pars <- c(pars, "gamma_rep")
+  if (K_mort > 0) {
+    pars <- c(pars, "beta_mort")
+  }
+  if (K_rep > 0) {
+    pars <- c(pars, "gamma_rep")
+  }
 
   e <- rstan::extract(x$stanfit, pars = pars, permuted = TRUE)
 
@@ -169,12 +195,17 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
 
   # helper to summarise a draws matrix (ndraw x npar)
   summarise_mat <- function(mat) {
-    if (is.null(dim(mat))) mat <- matrix(mat, ncol = 1)
+    if (is.null(dim(mat))) {
+      mat <- matrix(mat, ncol = 1)
+    }
     mean_ <- apply(mat, 2, mean)
     sd_ <- apply(mat, 2, stats::sd)
     qs <- t(apply(mat, 2, stats::quantile, probs = probs))
     out <- data.frame(mean = mean_, sd = sd_, qs, check.names = FALSE)
-    colnames(out)[-(1:2)] <- paste0("q", gsub("\\.", "", format(probs, trim = TRUE)))
+    colnames(out)[-(1:2)] <- paste0(
+      "q",
+      gsub("\\.", "", format(probs, trim = TRUE))
+    )
     out
   }
 
@@ -183,7 +214,9 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
   # beta_conf: array[draw, g]
   if (!is.null(e$beta_conf)) {
     mat <- e$beta_conf
-    if (length(dim(mat)) == 1) mat <- matrix(mat, ncol = 1)
+    if (length(dim(mat)) == 1) {
+      mat <- matrix(mat, ncol = 1)
+    }
     sm <- summarise_mat(mat)
     rows[[length(rows) + 1]] <- data.frame(
       component = "mortality",
@@ -217,7 +250,9 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
   # gamma_conf: array[draw, g]
   if (!is.null(e$gamma_conf)) {
     mat <- e$gamma_conf
-    if (length(dim(mat)) == 1) mat <- matrix(mat, ncol = 1)
+    if (length(dim(mat)) == 1) {
+      mat <- matrix(mat, ncol = 1)
+    }
     sm <- summarise_mat(mat)
     rows[[length(rows) + 1]] <- data.frame(
       component = "reporting",
@@ -272,7 +307,9 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
     out$sd_orig <- out$sd / out$scale
 
     qcols <- grep("^q", names(out), value = TRUE)
-    for (qc in qcols) out[[paste0(qc, "_orig")]] <- out[[qc]] / out$scale
+    for (qc in qcols) {
+      out[[paste0(qc, "_orig")]] <- out[[qc]] / out$scale
+    }
   }
 
   rownames(out) <- NULL
@@ -282,7 +319,9 @@ vrc_coef_summary <- function(x, probs = c(0.1, 0.5, 0.9), original_scale = FALSE
 #' @export
 plot.vrcfit <- function(x, type = c("reporting", "mortality"), ...) {
   type <- match.arg(type)
-  if (type == "reporting") return(plot_reporting(x, ...))
+  if (type == "reporting") {
+    return(plot_reporting(x, ...))
+  }
   plot_mortality(x, ...)
 }
 

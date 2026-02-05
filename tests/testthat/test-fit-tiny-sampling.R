@@ -7,8 +7,8 @@ test_that("Tiny end-to-end sampling run succeeds", {
   fit <- vrc_fit(
     data = sim$df_obs,
     t0 = sim$meta$t0,
-    mortality_covariates = ~ 1,
-    reporting_covariates = ~ 1,
+    mortality_covariates = ~1,
+    reporting_covariates = ~1,
     chains = 1,
     iter = 60,
     warmup = 30,

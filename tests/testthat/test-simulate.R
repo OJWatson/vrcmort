@@ -1,4 +1,3 @@
-
 test_that("vrc_simulate returns expected objects", {
   sim <- vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1)
   expect_true(is.list(sim))
@@ -14,14 +13,60 @@ test_that("vrc_simulate returns expected objects", {
   expect_true(nrow(sim$df_obs) <= nrow(sim$df_full))
 
   # required columns
-  req <- c("region", "time", "age", "sex", "cause", "y", "exposure", "pop", "conflict", "facility")
+  req <- c(
+    "region",
+    "time",
+    "age",
+    "sex",
+    "cause",
+    "y",
+    "exposure",
+    "pop",
+    "conflict",
+    "facility"
+  )
   expect_true(all(req %in% names(sim$df_full)))
 })
 
 test_that("vrc_simulate accepts partial missingness specifications", {
-  expect_silent(vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1, missing = list(type = "none")))
-  expect_silent(vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1, missing = list(type = "block", block_intercept = -1.5)))
-  expect_silent(vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1, missing = list(type = "age_selective", age_dropout_strength = 1.0)))
-  expect_silent(vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1, missing = list(type = "mnar", mnar_strength = 1.0)))
-  expect_silent(vrc_simulate(R = 5, T = 24, t0 = 12, seed = 1, missing = list(type = "combined", block_intercept = -2.0, age_dropout_strength = 1.0, mnar_strength = 1.0)))
+  expect_silent(vrc_simulate(
+    R = 5,
+    T = 24,
+    t0 = 12,
+    seed = 1,
+    missing = list(type = "none")
+  ))
+  expect_silent(vrc_simulate(
+    R = 5,
+    T = 24,
+    t0 = 12,
+    seed = 1,
+    missing = list(type = "block", block_intercept = -1.5)
+  ))
+  expect_silent(vrc_simulate(
+    R = 5,
+    T = 24,
+    t0 = 12,
+    seed = 1,
+    missing = list(type = "age_selective", age_dropout_strength = 1.0)
+  ))
+  expect_silent(vrc_simulate(
+    R = 5,
+    T = 24,
+    t0 = 12,
+    seed = 1,
+    missing = list(type = "mnar", mnar_strength = 1.0)
+  ))
+  expect_silent(vrc_simulate(
+    R = 5,
+    T = 24,
+    t0 = 12,
+    seed = 1,
+    missing = list(
+      type = "combined",
+      block_intercept = -2.0,
+      age_dropout_strength = 1.0,
+      mnar_strength = 1.0
+    )
+  ))
 })

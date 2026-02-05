@@ -120,8 +120,12 @@ vrc_standata <- function(
     df <- df[!is.na(df$y), , drop = FALSE]
   }
 
-  if (any(is.na(df$y))) stop("y contains NA after drop_na_y=TRUE", call. = FALSE)
-  if (any(df$y < 0)) stop("y must be non-negative", call. = FALSE)
+  if (any(is.na(df$y))) {
+    stop("y contains NA after drop_na_y=TRUE", call. = FALSE)
+  }
+  if (any(df$y < 0)) {
+    stop("y must be non-negative", call. = FALSE)
+  }
   check_positive(df$exposure, "exposure")
 
   # Standardise conflict
@@ -142,8 +146,16 @@ vrc_standata <- function(
     X_mort <- standardise_matrix(X_mort, scale_binary = scale_binary)
     X_rep <- standardise_matrix(X_rep, scale_binary = scale_binary)
   } else {
-    attr(X_mort, "scaling") <- list(centre = rep(0, ncol(X_mort)), scale = rep(1, ncol(X_mort)), colnames = colnames(X_mort))
-    attr(X_rep, "scaling") <- list(centre = rep(0, ncol(X_rep)), scale = rep(1, ncol(X_rep)), colnames = colnames(X_rep))
+    attr(X_mort, "scaling") <- list(
+      centre = rep(0, ncol(X_mort)),
+      scale = rep(1, ncol(X_mort)),
+      colnames = colnames(X_mort)
+    )
+    attr(X_rep, "scaling") <- list(
+      centre = rep(0, ncol(X_rep)),
+      scale = rep(1, ncol(X_rep)),
+      colnames = colnames(X_rep)
+    )
   }
 
   R <- meta$R
@@ -176,14 +188,14 @@ vrc_standata <- function(
     A = A,
     S = S,
     G = G,
-    region = as.integer(df$region_id),
-    time = as.integer(df$time_id),
-    age = as.integer(df$age_id),
-    sex = as.integer(df$sex_id),
-    cause = as.integer(df$cause_id),
-    y = as.integer(df$y),
-    exposure = as.numeric(df$exposure),
-    conflict = as.numeric(df$conflict_z),
+    region = as_stan_array_int(df$region_id),
+    time = as_stan_array_int(df$time_id),
+    age = as_stan_array_int(df$age_id),
+    sex = as_stan_array_int(df$sex_id),
+    cause = as_stan_array_int(df$cause_id),
+    y = as_stan_array_int(df$y),
+    exposure = as_stan_array(df$exposure),
+    conflict = as_stan_array(df$conflict_z),
     use_beta_conf_re = as.integer(mortality_conflict == "region"),
     use_gamma_conf_re = as.integer(reporting_conflict == "region"),
     use_rw_region_lambda = as.integer(mortality_time == "region"),
@@ -192,7 +204,7 @@ vrc_standata <- function(
     X_mort = X_mort,
     K_rep = ncol(X_rep),
     X_rep = X_rep,
-    post = post,
+    post = as_stan_array_int(post),
     t0 = as.integer(meta$t0),
     prior_PD = as.integer(prior_PD)
   )
