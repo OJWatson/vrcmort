@@ -99,57 +99,59 @@
 #'
 #' @export
 vrc_simulate <- function(
-    R = 5,
-    T = 120,
-    age_breaks = c(0, 5, 15, 25, 35, 45, 55, 65, Inf),
-    sexes = c("F", "M"),
-    t0 = floor(T / 2),
-    seed = 1,
-    missing = list(
-      type = "none",
-      block_intercept = -2.5,
-      block_conflict_coef = 0.8,
-      block_facility_coef = -1.0,
-      age_dropout_strength = 0.0,
-      age_dropout_old_from = 6,
-      age_dropout_post_only = TRUE,
-      mnar_strength = 0.0,
-      missing_to_zero = FALSE
-    ),
-    # Population
-    pop_total_range = c(3e5, 1.2e6),
-    pop_error_sd = 0.05,
-    displacement_post_sd = 0.02,
-    # Covariate dynamics
-    conflict_post_mean = 1.0,
-    conflict_post_sd = 0.6,
-    conflict_spike_prob = 0.08,
-    conflict_spike_mean = 2.0,
-    facility_pre_mean = 0.9,
-    facility_post_drop = 0.35,
-    facility_noise_sd = 0.08,
-    # True mortality parameters (roughly monthly rates)
-    beta_conf_true = c(1.0, 0.20),
-    beta_conf_region_sd = c(0.0, 0.0),
-    beta_fac_mort_true = c(0.0, -0.10),
-    sigma_u_lambda_true = c(0.35, 0.25),
-    sigma_v_lambda_true = c(0.08, 0.05),
-    sigma_v_lambda_region_true = c(0.0, 0.0),
-    phi_true = c(30, 60),
-    # Reporting parameters
-    rho0_true = c(0.70, 0.90),
-    kappa_post_true = c(0.00, -1.00),
-    gamma_conf_true = c(-0.10, -0.50),
-    gamma_conf_region_sd = c(0.0, 0.0),
-    gamma_fac_true = c(0.60, 0.80),
-    sigma_u_rho_true = c(0.40, 0.35),
-    sigma_v_rho_true = c(0.12, 0.08),
-    sigma_v_rho_region_true = c(0.0, 0.0),
-    age_penalty_non = NULL,
-    # Misclassification between observed trauma and non-trauma (only among recorded deaths)
-    misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01)
+  R = 5,
+  T = 120,
+  age_breaks = c(0, 5, 15, 25, 35, 45, 55, 65, Inf),
+  sexes = c("F", "M"),
+  t0 = floor(T / 2),
+  seed = 1,
+  missing = list(
+    type = "none",
+    block_intercept = -2.5,
+    block_conflict_coef = 0.8,
+    block_facility_coef = -1.0,
+    age_dropout_strength = 0.0,
+    age_dropout_old_from = 6,
+    age_dropout_post_only = TRUE,
+    mnar_strength = 0.0,
+    missing_to_zero = FALSE
+  ),
+  # Population
+  pop_total_range = c(3e5, 1.2e6),
+  pop_error_sd = 0.05,
+  displacement_post_sd = 0.02,
+  # Covariate dynamics
+  conflict_post_mean = 1.0,
+  conflict_post_sd = 0.6,
+  conflict_spike_prob = 0.08,
+  conflict_spike_mean = 2.0,
+  facility_pre_mean = 0.9,
+  facility_post_drop = 0.35,
+  facility_noise_sd = 0.08,
+  # True mortality parameters (roughly monthly rates)
+  beta_conf_true = c(1.0, 0.20),
+  beta_conf_region_sd = c(0.0, 0.0),
+  beta_fac_mort_true = c(0.0, -0.10),
+  sigma_u_lambda_true = c(0.35, 0.25),
+  sigma_v_lambda_true = c(0.08, 0.05),
+  sigma_v_lambda_region_true = c(0.0, 0.0),
+  phi_true = c(30, 60),
+  # Reporting parameters
+  rho0_true = c(0.70, 0.90),
+  kappa_post_true = c(0.00, -1.00),
+  gamma_conf_true = c(-0.10, -0.50),
+  gamma_conf_region_sd = c(0.0, 0.0),
+  gamma_fac_true = c(0.60, 0.80),
+  sigma_u_rho_true = c(0.40, 0.35),
+  sigma_v_rho_true = c(0.12, 0.08),
+  sigma_v_rho_region_true = c(0.0, 0.0),
+  age_penalty_non = NULL,
+  # Misclassification between observed trauma and non-trauma (only among recorded deaths)
+  misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01)
 ) {
-  if (!is.null(seed)) set.seed(seed)
+  if (!is.null(seed)) {
+    set.seed(seed)
+  }
 
   # ------------------------------------------------------------------
   # Complete the missingness specification.
@@ -195,7 +197,9 @@ vrc_simulate <- function(
   S <- length(sexes)
   G <- 2L
 
-  if (t0 < 1 || t0 > T) stop("t0 must be between 1 and T", call. = FALSE)
+  if (t0 < 1 || t0 > T) {
+    stop("t0 must be between 1 and T", call. = FALSE)
+  }
 
   logit <- function(p) stats::qlogis(p)
   inv_logit <- function(x) stats::plogis(x)
@@ -215,7 +219,9 @@ vrc_simulate <- function(
     age_penalty_non <- seq(0, 1.5, length.out = A)
     age_penalty_non[1] <- 0
   } else {
-    if (length(age_penalty_non) != A) stop("age_penalty_non must have length A", call. = FALSE)
+    if (length(age_penalty_non) != A) {
+      stop("age_penalty_non must have length A", call. = FALSE)
+    }
   }
 
   # ----------------------------
@@ -251,8 +257,10 @@ vrc_simulate <- function(
   }
 
   N_true <- array(0, dim = c(R, T, A, S))
-  for (r in seq_len(R)) for (t in seq_len(T)) {
-    N_true[r, t, , ] <- base_pop[r, , ] * pop_scale[r, t]
+  for (r in seq_len(R)) {
+    for (t in seq_len(T)) {
+      N_true[r, t, , ] <- base_pop[r, , ] * pop_scale[r, t]
+    }
   }
 
   N_est <- N_true * exp(stats::rnorm(length(N_true), 0, pop_error_sd))
@@ -283,9 +291,14 @@ vrc_simulate <- function(
   for (r in seq_len(R)) {
     for (t in seq_len(T)) {
       if (t < t0) {
-        facility_rt[r, t] <- pmin(1, pmax(0, stats::rnorm(1, facility_pre_mean, facility_noise_sd)))
+        facility_rt[r, t] <- pmin(
+          1,
+          pmax(0, stats::rnorm(1, facility_pre_mean, facility_noise_sd))
+        )
       } else {
-        base <- facility_pre_mean - facility_post_drop + stats::rnorm(1, 0, facility_noise_sd)
+        base <- facility_pre_mean -
+          facility_post_drop +
+          stats::rnorm(1, 0, facility_noise_sd)
         harm <- 0.08 * conflict_rt[r, t]
         facility_rt[r, t] <- pmin(1, pmax(0, base - harm))
       }
@@ -302,7 +315,11 @@ vrc_simulate <- function(
   # ----------------------------
   # Optional: region-varying conflict effects (random slopes)
   # ----------------------------
-  beta_conf_region_true <- matrix(rep(beta_conf_true, each = R), nrow = R, ncol = G)
+  beta_conf_region_true <- matrix(
+    rep(beta_conf_true, each = R),
+    nrow = R,
+    ncol = G
+  )
   if (any(beta_conf_region_sd != 0)) {
     for (g in seq_len(G)) {
       z <- stats::rnorm(R, 0, 1)
@@ -312,12 +329,17 @@ vrc_simulate <- function(
     }
   }
 
-  gamma_conf_region_true <- matrix(rep(gamma_conf_true, each = R), nrow = R, ncol = G)
+  gamma_conf_region_true <- matrix(
+    rep(gamma_conf_true, each = R),
+    nrow = R,
+    ncol = G
+  )
   if (any(gamma_conf_region_sd != 0)) {
     for (g in seq_len(G)) {
       z <- stats::rnorm(R, 0, 1)
       z <- z - mean(z)
-      gamma_conf_region_true[, g] <- gamma_conf_true[g] + gamma_conf_region_sd[g] * z
+      gamma_conf_region_true[, g] <- gamma_conf_true[g] +
+        gamma_conf_region_sd[g] * z
     }
   }
 
@@ -348,13 +370,13 @@ vrc_simulate <- function(
   non_age_shape <- 0.0010 * (age_mid - 30)^2
   non_age_shape <- non_age_shape - mean(non_age_shape)
 
-  bump <- exp(- (age_mid - 25)^2 / (2 * 15^2))
+  bump <- exp(-(age_mid - 25)^2 / (2 * 15^2))
   trauma_age_shape <- 1.2 * (bump - mean(bump))
 
-  sex_eff_trauma <- c(0.0, 0.35)   # F, M
+  sex_eff_trauma <- c(0.0, 0.35) # F, M
   sex_eff_non <- c(0.0, 0.10)
 
-  alpha0_true <- c(-10.5, -7.0)    # trauma, non
+  alpha0_true <- c(-10.5, -7.0) # trauma, non
 
   u_lambda_true <- cbind(
     stats::rnorm(R, 0, sigma_u_lambda_true[1]),
@@ -368,17 +390,33 @@ vrc_simulate <- function(
 
   lambda_true <- array(NA_real_, dim = c(R, T, A, S, G))
 
-  for (r in seq_len(R)) for (t in seq_len(T)) for (a in seq_len(A)) for (s in seq_len(S)) {
-    loglam1 <- alpha0_true[1] + trauma_age_shape[a] + sex_eff_trauma[s] +
-      u_lambda_true[r, 1] + v_lambda_true[t, 1] + v_lambda_region_true[t, r, 1] +
-      beta_conf_region_true[r, 1] * conflict_z[r, t] + beta_fac_mort_true[1] * facility_z[r, t]
+  for (r in seq_len(R)) {
+    for (t in seq_len(T)) {
+      for (a in seq_len(A)) {
+        for (s in seq_len(S)) {
+          loglam1 <- alpha0_true[1] +
+            trauma_age_shape[a] +
+            sex_eff_trauma[s] +
+            u_lambda_true[r, 1] +
+            v_lambda_true[t, 1] +
+            v_lambda_region_true[t, r, 1] +
+            beta_conf_region_true[r, 1] * conflict_z[r, t] +
+            beta_fac_mort_true[1] * facility_z[r, t]
 
-    loglam2 <- alpha0_true[2] + non_age_shape[a] + sex_eff_non[s] +
-      u_lambda_true[r, 2] + v_lambda_true[t, 2] + v_lambda_region_true[t, r, 2] +
-      beta_conf_region_true[r, 2] * conflict_z[r, t] + beta_fac_mort_true[2] * facility_z[r, t]
+          loglam2 <- alpha0_true[2] +
+            non_age_shape[a] +
+            sex_eff_non[s] +
+            u_lambda_true[r, 2] +
+            v_lambda_true[t, 2] +
+            v_lambda_region_true[t, r, 2] +
+            beta_conf_region_true[r, 2] * conflict_z[r, t] +
+            beta_fac_mort_true[2] * facility_z[r, t]
 
-    lambda_true[r, t, a, s, 1] <- exp(loglam1)
-    lambda_true[r, t, a, s, 2] <- exp(loglam2)
+          lambda_true[r, t, a, s, 1] <- exp(loglam1)
+          lambda_true[r, t, a, s, 2] <- exp(loglam2)
+        }
+      }
+    }
   }
 
   # ----------------------------
@@ -398,19 +436,33 @@ vrc_simulate <- function(
 
   rho_true <- array(NA_real_, dim = c(R, T, A, S, G))
 
-  for (r in seq_len(R)) for (t in seq_len(T)) for (a in seq_len(A)) for (s in seq_len(S)) {
-    logrho1 <- kappa0_true[1] + kappa_post_true[1] * post_t[t] +
-      u_rho_true[r, 1] + v_rho_true[t, 1] + v_rho_region_true[t, r, 1] +
-      gamma_conf_region_true[r, 1] * conflict_z[r, t] + gamma_fac_true[1] * facility_z[r, t]
+  for (r in seq_len(R)) {
+    for (t in seq_len(T)) {
+      for (a in seq_len(A)) {
+        for (s in seq_len(S)) {
+          logrho1 <- kappa0_true[1] +
+            kappa_post_true[1] * post_t[t] +
+            u_rho_true[r, 1] +
+            v_rho_true[t, 1] +
+            v_rho_region_true[t, r, 1] +
+            gamma_conf_region_true[r, 1] * conflict_z[r, t] +
+            gamma_fac_true[1] * facility_z[r, t]
 
-    age_pen <- - age_penalty_non[a] * post_t[t]
-    logrho2 <- kappa0_true[2] + kappa_post_true[2] * post_t[t] +
-      u_rho_true[r, 2] + v_rho_true[t, 2] + v_rho_region_true[t, r, 2] +
-      gamma_conf_region_true[r, 2] * conflict_z[r, t] + gamma_fac_true[2] * facility_z[r, t] +
-      age_pen
+          age_pen <- -age_penalty_non[a] * post_t[t]
+          logrho2 <- kappa0_true[2] +
+            kappa_post_true[2] * post_t[t] +
+            u_rho_true[r, 2] +
+            v_rho_true[t, 2] +
+            v_rho_region_true[t, r, 2] +
+            gamma_conf_region_true[r, 2] * conflict_z[r, t] +
+            gamma_fac_true[2] * facility_z[r, t] +
+            age_pen
 
-    rho_true[r, t, a, s, 1] <- inv_logit(logrho1)
-    rho_true[r, t, a, s, 2] <- inv_logit(logrho2)
+          rho_true[r, t, a, s, 1] <- inv_logit(logrho1)
+          rho_true[r, t, a, s, 2] <- inv_logit(logrho2)
+        }
+      }
+    }
   }
 
   # ----------------------------
@@ -418,10 +470,16 @@ vrc_simulate <- function(
   # ----------------------------
   p_n2t <- misclass$p_non_to_trauma
   p_t2n <- misclass$p_trauma_to_non
-  M <- matrix(c(
-    1 - p_t2n, p_t2n,
-    p_n2t, 1 - p_n2t
-  ), nrow = 2, byrow = TRUE)
+  M <- matrix(
+    c(
+      1 - p_t2n,
+      p_t2n,
+      p_n2t,
+      1 - p_n2t
+    ),
+    nrow = 2,
+    byrow = TRUE
+  )
 
   # ----------------------------
   # Generate true and observed deaths
@@ -429,20 +487,30 @@ vrc_simulate <- function(
   D_true <- array(0L, dim = c(R, T, A, S, G))
   Y_obs <- array(0L, dim = c(R, T, A, S, G))
 
-  for (r in seq_len(R)) for (t in seq_len(T)) for (a in seq_len(A)) for (s in seq_len(S)) {
-    for (g_true in 1:G) {
-      mu_true <- N_true[r, t, a, s] * lambda_true[r, t, a, s, g_true]
-      D <- stats::rnbinom(1, size = phi_true[g_true], mu = mu_true)
-      D_true[r, t, a, s, g_true] <- D
+  for (r in seq_len(R)) {
+    for (t in seq_len(T)) {
+      for (a in seq_len(A)) {
+        for (s in seq_len(S)) {
+          for (g_true in 1:G) {
+            mu_true <- N_true[r, t, a, s] * lambda_true[r, t, a, s, g_true]
+            D <- stats::rnbinom(1, size = phi_true[g_true], mu = mu_true)
+            D_true[r, t, a, s, g_true] <- D
 
-      rho <- rho_true[r, t, a, s, g_true]
-      p_obs1 <- rho * M[g_true, 1]
-      p_obs2 <- rho * M[g_true, 2]
-      p_unobs <- max(0, 1 - rho)
+            rho <- rho_true[r, t, a, s, g_true]
+            p_obs1 <- rho * M[g_true, 1]
+            p_obs2 <- rho * M[g_true, 2]
+            p_unobs <- max(0, 1 - rho)
 
-      alloc <- as.integer(stats::rmultinom(1, size = D, prob = c(p_obs1, p_obs2, p_unobs)))
-      Y_obs[r, t, a, s, 1] <- Y_obs[r, t, a, s, 1] + alloc[1]
-      Y_obs[r, t, a, s, 2] <- Y_obs[r, t, a, s, 2] + alloc[2]
+            alloc <- as.integer(stats::rmultinom(
+              1,
+              size = D,
+              prob = c(p_obs1, p_obs2, p_unobs)
+            ))
+            Y_obs[r, t, a, s, 1] <- Y_obs[r, t, a, s, 1] + alloc[1]
+            Y_obs[r, t, a, s, 2] <- Y_obs[r, t, a, s, 2] + alloc[2]
+          }
+        }
+      }
     }
   }
 
@@ -480,23 +548,37 @@ vrc_simulate <- function(
   if (!identical(missing$type, "none")) {
     if (missing$type %in% c("block", "combined")) {
       block_drop <- matrix(FALSE, R, T)
-      for (r in seq_len(R)) for (t in seq_len(T)) {
-        lin <- missing$block_intercept +
-          missing$block_conflict_coef * conflict_z[r, t] +
-          missing$block_facility_coef * facility_z[r, t] +
-          0.3 * stats::rnorm(1)
-        p <- inv_logit(lin)
-        block_drop[r, t] <- (stats::runif(1) < p)
+      for (r in seq_len(R)) {
+        for (t in seq_len(T)) {
+          lin <- missing$block_intercept +
+            missing$block_conflict_coef * conflict_z[r, t] +
+            missing$block_facility_coef * facility_z[r, t] +
+            0.3 * stats::rnorm(1)
+          p <- inv_logit(lin)
+          block_drop[r, t] <- (stats::runif(1) < p)
+        }
       }
       df$missing_flag <- df$missing_flag | block_drop[cbind(df$region, df$time)]
     }
 
-    if (missing$type %in% c("age_selective", "combined") && missing$age_dropout_strength > 0) {
+    if (
+      missing$type %in%
+        c("age_selective", "combined") &&
+        missing$age_dropout_strength > 0
+    ) {
       is_old <- df$age >= missing$age_dropout_old_from
-      is_post <- if (isTRUE(missing$age_dropout_post_only)) df$post == 1 else TRUE
-      lin <- logit(0.02) + missing$age_dropout_strength * df$conflict + 0.6 * is_old + 0.3 * is_post
+      is_post <- if (isTRUE(missing$age_dropout_post_only)) {
+        df$post == 1
+      } else {
+        TRUE
+      }
+      lin <- logit(0.02) +
+        missing$age_dropout_strength * df$conflict +
+        0.6 * is_old +
+        0.3 * is_post
       p <- inv_logit(lin)
-      df$missing_flag <- df$missing_flag | (stats::runif(nrow(df)) < p & is_old & is_post & df$cause == 2)
+      df$missing_flag <- df$missing_flag |
+        (stats::runif(nrow(df)) < p & is_old & is_post & df$cause == 2)
     }
 
     if (missing$type %in% c("mnar", "combined") && missing$mnar_strength > 0) {
@@ -554,7 +636,11 @@ vrc_simulate <- function(
   )
 
   meta <- list(
-    R = R, T = T, A = A, S = S, G = G,
+    R = R,
+    T = T,
+    A = A,
+    S = S,
+    G = G,
     t0 = t0,
     age_breaks = age_breaks,
     sexes = sexes,
@@ -596,4 +682,3 @@ vrc_sim_truth <- function(sim) {
 
   df
 }
-

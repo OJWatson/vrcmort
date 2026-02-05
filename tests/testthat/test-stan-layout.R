@@ -20,6 +20,10 @@ test_that("Stan model include files are present", {
   }
 
   txt <- paste(readLines(base, warn = FALSE), collapse = "\n")
-  expect_true(grepl("#include \\\"functions/rw1_centered\\.stan\\\"", txt, fixed = FALSE))
+  expect_true(grepl(
+    "#include \\\"functions/rw1_centered\\.stan\\\"",
+    txt,
+    fixed = FALSE
+  ))
   expect_true(grepl("#include \\\"data/data_vr\\.stan\\\"", txt, fixed = FALSE))
 })

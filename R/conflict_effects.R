@@ -27,7 +27,9 @@ vrc_conflict_effects <- function(
   probs = c(0.1, 0.5, 0.9),
   draws = FALSE
 ) {
-  if (!inherits(x, "vrcfit")) stop("x must be a vrcfit object", call. = FALSE)
+  if (!inherits(x, "vrcfit")) {
+    stop("x must be a vrcfit object", call. = FALSE)
+  }
   component <- match.arg(component)
 
   if (!requireNamespace("rstan", quietly = TRUE)) {
@@ -48,8 +50,12 @@ vrc_conflict_effects <- function(
   region_levels <- x$meta$region_levels
   cause_levels <- x$meta$cause_levels
 
-  if (length(region_levels) < R) region_levels <- as.character(seq_len(R))
-  if (length(cause_levels) < G) cause_levels <- paste0("cause", seq_len(G))
+  if (length(region_levels) < R) {
+    region_levels <- as.character(seq_len(R))
+  }
+  if (length(cause_levels) < G) {
+    cause_levels <- paste0("cause", seq_len(G))
+  }
 
   if (isTRUE(draws)) {
     nd <- dim(arr)[1]

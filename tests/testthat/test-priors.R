@@ -1,4 +1,3 @@
-
 test_that("custom priors are propagated into standata", {
   # Minimal deterministic dataset
   df <- expand.grid(
@@ -25,7 +24,7 @@ test_that("custom priors are propagated into standata", {
   sdat <- vrc_standata(
     data = df,
     t0 = 2,
-    mortality_covariates = ~ x,
+    mortality_covariates = ~x,
     reporting_covariates = NULL,
     standardise = FALSE,
     priors = pr

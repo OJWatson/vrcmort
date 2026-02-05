@@ -85,7 +85,12 @@ vrc_model_spec <- function(
         # development fallback
         dev_file <- file.path("inst", "stan", paste0(model, ".stan"))
         if (!file.exists(dev_file)) {
-          stop("Could not find Stan file for model '", model, "'", call. = FALSE)
+          stop(
+            "Could not find Stan file for model '",
+            model,
+            "'",
+            call. = FALSE
+          )
         }
         file <- dev_file
       }
@@ -130,7 +135,11 @@ vrc_model_spec <- function(
 #'
 #' @return Invisibly returns the path to the copied base Stan file.
 #' @export
-vrc_write_stan_template <- function(path, model = "vr_reporting_model", overwrite = FALSE) {
+vrc_write_stan_template <- function(
+  path,
+  model = "vr_reporting_model",
+  overwrite = FALSE
+) {
   if (!is.character(path) || length(path) != 1) {
     stop("path must be a single directory", call. = FALSE)
   }
@@ -225,12 +234,26 @@ vrc_model <- function(name = "vr_reporting_model", backend = c("rstan"), ...) {
   mtime <- if (!is.na(finfo$mtime)) as.integer(finfo$mtime) else 0L
   hash <- sum(utf8ToInt(spec$file))
 
-  key <- paste0("stanmodel_", spec$backend, "_", spec$name, "_", hash, "_", mtime)
+  key <- paste0(
+    "stanmodel_",
+    spec$backend,
+    "_",
+    spec$name,
+    "_",
+    hash,
+    "_",
+    mtime
+  )
   if (exists(key, envir = .vrcmort_env, inherits = FALSE)) {
     return(get(key, envir = .vrcmort_env, inherits = FALSE))
   }
 
-  sm <- rstan::stan_model(file = spec$file, model_name = spec$name, allow_undefined = TRUE, ...)
+  sm <- rstan::stan_model(
+    file = spec$file,
+    model_name = spec$name,
+    allow_undefined = TRUE,
+    ...
+  )
   assign(key, sm, envir = .vrcmort_env)
   sm
 }

@@ -1,4 +1,3 @@
-
 test_that("vrc_model_spec handles built-in and file paths", {
   spec1 <- vrc_model_spec("vr_reporting_model")
   expect_true(inherits(spec1, "vrc_model_spec"))

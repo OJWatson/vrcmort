@@ -4,8 +4,12 @@
 .vrc_param <- function(x, key, default) {
   if (inherits(x, "vrcfit")) {
     pm <- NULL
-    if (!is.null(x$model_spec) && is.list(x$model_spec$param_map)) pm <- x$model_spec$param_map
-    if (is.null(pm) && !is.null(x$param_map) && is.list(x$param_map)) pm <- x$param_map
+    if (!is.null(x$model_spec) && is.list(x$model_spec$param_map)) {
+      pm <- x$model_spec$param_map
+    }
+    if (is.null(pm) && !is.null(x$param_map) && is.list(x$param_map)) {
+      pm <- x$param_map
+    }
     if (!is.null(pm) && !is.null(pm[[key]])) return(as.character(pm[[key]])[1])
   }
   default
@@ -27,8 +31,19 @@
 #' Otherwise a data.frame combining `x$data` with summary columns for `rho`.
 #'
 #' @export
-posterior_reporting <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
-  .posterior_cell_summary(x, var = .vrc_param(x, "rho", "rho_rep"), draws = draws, probs = probs, prefix = "rho")
+posterior_reporting <- function(
+  x,
+  draws = FALSE,
+  probs = c(0.1, 0.5, 0.9),
+  ...
+) {
+  .posterior_cell_summary(
+    x,
+    var = .vrc_param(x, "rho", "rho_rep"),
+    draws = draws,
+    probs = probs,
+    prefix = "rho"
+  )
 }
 
 #' Posterior summaries for latent mortality rates
@@ -39,8 +54,19 @@ posterior_reporting <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...)
 #'
 #' @inheritParams posterior_reporting
 #' @export
-posterior_mortality <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
-  .posterior_cell_summary(x, var = .vrc_param(x, "lambda", "lambda_rep"), draws = draws, probs = probs, prefix = "lambda")
+posterior_mortality <- function(
+  x,
+  draws = FALSE,
+  probs = c(0.1, 0.5, 0.9),
+  ...
+) {
+  .posterior_cell_summary(
+    x,
+    var = .vrc_param(x, "lambda", "lambda_rep"),
+    draws = draws,
+    probs = probs,
+    prefix = "lambda"
+  )
 }
 
 #' Posterior summaries for expected observed counts
@@ -51,8 +77,19 @@ posterior_mortality <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...)
 #'
 #' @inheritParams posterior_reporting
 #' @export
-posterior_expected_counts <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
-  .posterior_cell_summary(x, var = .vrc_param(x, "mu", "mu_rep"), draws = draws, probs = probs, prefix = "mu")
+posterior_expected_counts <- function(
+  x,
+  draws = FALSE,
+  probs = c(0.1, 0.5, 0.9),
+  ...
+) {
+  .posterior_cell_summary(
+    x,
+    var = .vrc_param(x, "mu", "mu_rep"),
+    draws = draws,
+    probs = probs,
+    prefix = "mu"
+  )
 }
 
 #' Posterior predictive distribution for observed counts
@@ -63,18 +100,28 @@ posterior_expected_counts <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9)
 #' @inheritParams posterior_reporting
 #' @export
 posterior_predict <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
-  .posterior_cell_summary(x, var = .vrc_param(x, "y_rep", "y_rep"), draws = draws, probs = probs, prefix = "yrep")
+  .posterior_cell_summary(
+    x,
+    var = .vrc_param(x, "y_rep", "y_rep"),
+    draws = draws,
+    probs = probs,
+    prefix = "yrep"
+  )
 }
 
 #' @keywords internal
 .posterior_cell_summary <- function(x, var, draws, probs, prefix) {
-  if (!inherits(x, "vrcfit")) stop("x must be a vrcfit object", call. = FALSE)
+  if (!inherits(x, "vrcfit")) {
+    stop("x must be a vrcfit object", call. = FALSE)
+  }
   if (!requireNamespace("rstan", quietly = TRUE)) {
     stop("Package 'rstan' is required", call. = FALSE)
   }
 
   e <- rstan::extract(x$stanfit, pars = var, permuted = TRUE)
-  if (!var %in% names(e)) stop("Parameter not found in stanfit: ", var, call. = FALSE)
+  if (!var %in% names(e)) {
+    stop("Parameter not found in stanfit: ", var, call. = FALSE)
+  }
 
   mat <- e[[var]]
   # rstan returns vector for scalar; ensure 2D matrix
@@ -90,7 +137,11 @@ posterior_predict <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
   mean_ <- apply(mat, 2, mean)
   sd_ <- apply(mat, 2, stats::sd)
   qs <- t(apply(mat, 2, stats::quantile, probs = probs))
-  colnames(qs) <- paste0(prefix, "_q", gsub("\\.", "", format(probs, trim = TRUE)))
+  colnames(qs) <- paste0(
+    prefix,
+    "_q",
+    gsub("\\.", "", format(probs, trim = TRUE))
+  )
 
   out <- x$data
   out[[paste0(prefix, "_mean")]] <- as.numeric(mean_)
