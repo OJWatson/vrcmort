@@ -98,6 +98,9 @@ vrc_reporting <- function(
 #' @param reporting A [vrc_reporting()] specification, or a formula.
 #' @param data A data.frame in canonical VR long format (see [vrc_standata()]).
 #' @param t0 Conflict start time (index or a value in `data$time`).
+#' @param use_mar_labels Logical. If TRUE, account for missing region labels
+#'   using a Missing At Random (MAR) assumption with a labeling probability
+#'   `omega`. If FALSE (default), rows with missing region labels are ignored.
 #' @param priors Optional prior specification created by [vrc_priors()]. If
 #'   `NULL` (default), uses [vrc_priors()] with package defaults.
 #' @param ... Passed through to [vrc_fit()].
@@ -110,6 +113,7 @@ vrcm <- function(
   reporting = vrc_reporting(~1),
   data,
   t0,
+  use_mar_labels = FALSE,
   priors = NULL,
   ...
 ) {
@@ -136,6 +140,7 @@ vrcm <- function(
     reporting_conflict = reporting$conflict,
     mortality_time = mortality$time,
     reporting_time = reporting$time,
+    use_mar_labels = use_mar_labels,
     priors = priors,
     ...
   )
@@ -198,7 +203,7 @@ vrc_coef_summary <- function(
     if (is.null(dim(mat))) {
       mat <- matrix(mat, ncol = 1)
     }
-    mean_ <- apply(mat, 2, mean)
+    mean_ <- colMeans(mat)
     sd_ <- apply(mat, 2, stats::sd)
     qs <- t(apply(mat, 2, stats::quantile, probs = probs))
     out <- data.frame(mean = mean_, sd = sd_, qs, check.names = FALSE)
@@ -208,8 +213,7 @@ vrc_coef_summary <- function(
     )
     out
   }
-
-  rows <- list()
+    rows <- list()
 
   # beta_conf: array[draw, g]
   if (!is.null(e$beta_conf)) {
@@ -340,7 +344,7 @@ residuals.vrcfit <- function(object, ...) {
 
 #' @export
 coef.vrcfit <- function(object, ...) {
-  sm <- vrc_coef_summary(object, probs = c(0.5), original_scale = FALSE)
+  sm <- vrc_coef_summary(object, probs = 0.5, original_scale = FALSE)
   # Create a compact named vector of posterior means
   nm <- paste0(sm$component, ":", sm$cause, ":", sm$term)
   stats::setNames(sm$mean, nm)

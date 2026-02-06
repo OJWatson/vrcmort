@@ -17,6 +17,7 @@ vrc_standata(
   scale_binary = FALSE,
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
+  use_mar_labels = FALSE,
   priors = NULL,
   prior_PD = FALSE
 )
@@ -59,6 +60,10 @@ are also standardised. Defaults to FALSE.}
 
 \item{duplicates}{How to handle duplicate identifier rows. One of
 \code{"error"} (default) or \code{"sum"}.}
+
+\item{use_mar_labels}{Logical. If TRUE, account for missing region labels
+using a Missing At Random (MAR) assumption with a labeling probability
+\code{omega}. If FALSE (default), rows with missing region labels are ignored.}
 
 \item{priors}{Optional prior specification created by \code{\link[=vrc_priors]{vrc_priors()}}. If
 \code{NULL} (default), uses \code{\link[=vrc_priors]{vrc_priors()}} with package defaults.}

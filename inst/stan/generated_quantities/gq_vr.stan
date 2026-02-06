@@ -4,6 +4,8 @@
   vector[N] log_lik;
   array[N] int y_rep;
 
+  vector[N_miss] log_lik_miss;
+
   for (i in 1:N) {
     int g = cause[i];
 
@@ -35,11 +37,52 @@
 
     lambda_rep[i] = exp(log_lambda);
     rho_rep[i] = inv_logit(logit_rho);
-    mu_rep[i] = exposure[i] * lambda_rep[i] * rho_rep[i];
+    mu_rep[i] = exposure[i] * lambda_rep[i] * rho_rep[i] * (use_mar_labels == 1 ? omega : 1.0);
 
     // Posterior predictive draw
-    y_rep[i] = neg_binomial_2_rng(mu_rep[i], phi[g]);
+    y_rep[i] = neg_binomial_2_rng(mu_rep[i] + 1e-15, phi[g]);
 
     // Pointwise log-likelihood (for LOO / WAIC)
     log_lik[i] = neg_binomial_2_lpmf(y[i] | mu_rep[i] + 1e-15, phi[g]);
+  }
+
+  if (use_mar_labels == 1) {
+    for (j in 1:N_miss) {
+      int g = cause_miss[j];
+      int t = time_miss[j];
+      int a = age_miss[j];
+      int s = sex_miss[j];
+
+      real mort_x_miss = 0;
+      real rep_x_miss = 0;
+      if (K_mort > 0) mort_x_miss = X_mort_miss[j] * (beta_mort[g]');
+      if (K_rep > 0)  rep_x_miss  = X_rep_miss[j]  * (gamma_rep[g]');
+
+      vector[R] mus_miss;
+      for (r in 1:R) {
+        real log_lambda_r = alpha0[g]
+                          + alpha_age[a, g]
+                          + alpha_sex[s, g]
+                          + u_lambda[r, g]
+                          + v_lambda[g][t]
+                          + v_lambda_region[g][t, r]
+                          + beta_conf_rg[r, g] * conflict_miss[j, r]
+                          + mort_x_miss;
+
+        real logit_rho_r = kappa0[g]
+                         + kappa_post[g] * post[t]
+                         + u_rho[r, g]
+                         + v_rho[g][t]
+                         + v_rho_region[g][t, r]
+                         + gamma_conf_rg[r, g] * conflict_miss[j, r]
+                         + rep_x_miss;
+
+        if (g == 2) {
+          logit_rho_r += - delta_age[a] * post[t];
+        }
+
+        mus_miss[r] = exposure_miss[j, r] * exp(log_lambda_r) * inv_logit(logit_rho_r) * (1 - omega);
+      }
+      log_lik_miss[j] = neg_binomial_2_sum_lpmf(y_miss[j] | mus_miss, phi[g]);
+    }
   }

@@ -48,27 +48,26 @@ plot_reporting <- function(
 
   gvars <- unique(c("time", group_vars))
 
-  df_ag <- dplyr::group_by(df, !!!rlang::syms(gvars))
-  df_ag <- dplyr::summarise(
-    df_ag,
-    w = sum(.data[[weight_var]], na.rm = TRUE),
-    rho_mean = stats::weighted.mean(
-      .data$rho_mean,
-      w = .data[[weight_var]],
-      na.rm = TRUE
-    ),
-    rho_lo = stats::weighted.mean(
-      .data[[qlo]],
-      w = .data[[weight_var]],
-      na.rm = TRUE
-    ),
-    rho_hi = stats::weighted.mean(
-      .data[[qhi]],
-      w = .data[[weight_var]],
-      na.rm = TRUE
-    ),
-    .groups = "drop"
-  )
+  df_ag <- df |>
+    dplyr::summarise(
+      w = sum(.data[[weight_var]], na.rm = TRUE),
+      rho_mean = stats::weighted.mean(
+        .data$rho_mean,
+        w = .data[[weight_var]],
+        na.rm = TRUE
+      ),
+      rho_lo = stats::weighted.mean(
+        .data[[qlo]],
+        w = .data[[weight_var]],
+        na.rm = TRUE
+      ),
+      rho_hi = stats::weighted.mean(
+        .data[[qhi]],
+        w = .data[[weight_var]],
+        na.rm = TRUE
+      ),
+      .by = dplyr::all_of(gvars)
+    )
 
   p <- ggplot2::ggplot(df_ag, ggplot2::aes(x = .data$time, y = .data$rho_mean))
 
@@ -145,25 +144,23 @@ plot_mortality <- function(
   gvars <- unique(c("time", group_vars))
 
   if (value == "true_deaths") {
-    df_ag <- dplyr::group_by(df, !!!rlang::syms(gvars))
-    df_ag <- dplyr::summarise(
-      df_ag,
-      value = sum(.data$true_deaths_mean, na.rm = TRUE),
-      .groups = "drop"
-    )
+    df_ag <- df |>
+      dplyr::summarise(
+        value = sum(.data$true_deaths_mean, na.rm = TRUE),
+        .by = dplyr::all_of(gvars)
+      )
     ylab <- "Expected true deaths"
   } else {
     # exposure-weighted mean rate
-    df_ag <- dplyr::group_by(df, !!!rlang::syms(gvars))
-    df_ag <- dplyr::summarise(
-      df_ag,
-      value = stats::weighted.mean(
-        .data$lambda_mean,
-        w = .data$exposure,
-        na.rm = TRUE
-      ),
-      .groups = "drop"
-    )
+    df_ag <- df |>
+      dplyr::summarise(
+        value = stats::weighted.mean(
+          .data$lambda_mean,
+          w = .data$exposure,
+          na.rm = TRUE
+        ),
+        .by = dplyr::all_of(gvars)
+      )
     ylab <- "Latent mortality rate (lambda)"
   }
 

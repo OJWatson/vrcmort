@@ -9,6 +9,7 @@ vrcm(
   reporting = vrc_reporting(~1),
   data,
   t0,
+  use_mar_labels = FALSE,
   priors = NULL,
   ...
 )
@@ -21,6 +22,10 @@ vrcm(
 \item{data}{A data.frame in canonical VR long format (see \code{\link[=vrc_standata]{vrc_standata()}}).}
 
 \item{t0}{Conflict start time (index or a value in \code{data$time}).}
+
+\item{use_mar_labels}{Logical. If TRUE, account for missing region labels
+using a Missing At Random (MAR) assumption with a labeling probability
+\code{omega}. If FALSE (default), rows with missing region labels are ignored.}
 
 \item{priors}{Optional prior specification created by \code{\link[=vrc_priors]{vrc_priors()}}. If
 \code{NULL} (default), uses \code{\link[=vrc_priors]{vrc_priors()}} with package defaults.}

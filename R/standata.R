@@ -44,6 +44,9 @@
 #' @param drop_na_y Logical. If TRUE (default), rows with missing `y` are removed.
 #' @param duplicates How to handle duplicate identifier rows. One of
 #'   `"error"` (default) or `"sum"`.
+#' @param use_mar_labels Logical. If TRUE, account for missing region labels
+#'   using a Missing At Random (MAR) assumption with a labeling probability
+#'   `omega`. If FALSE (default), rows with missing region labels are ignored.
 #' @param priors Optional prior specification created by [vrc_priors()]. If
 #'   `NULL` (default), uses [vrc_priors()] with package defaults.
 #' @param prior_PD Logical. If TRUE, Stan ignores the likelihood and samples from
@@ -70,6 +73,7 @@ vrc_standata <- function(
   scale_binary = FALSE,
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
+  use_mar_labels = FALSE,
   priors = NULL,
   prior_PD = FALSE
 ) {
@@ -86,6 +90,9 @@ vrc_standata <- function(
   if (!is.logical(drop_na_y) || length(drop_na_y) != 1) {
     stop("drop_na_y must be TRUE or FALSE", call. = FALSE)
   }
+  if (!is.logical(use_mar_labels) || length(use_mar_labels) != 1) {
+    stop("use_mar_labels must be TRUE or FALSE", call. = FALSE)
+  }
   if (!is.logical(prior_PD) || length(prior_PD) != 1) {
     stop("prior_PD must be TRUE or FALSE", call. = FALSE)
   }
@@ -98,6 +105,7 @@ vrc_standata <- function(
   )
 
   df <- idx$data
+  df_miss <- idx$data_miss
   meta <- idx$meta
 
   # Store modelling options in meta for downstream methods
@@ -105,7 +113,8 @@ vrc_standata <- function(
     mortality_conflict = mortality_conflict,
     reporting_conflict = reporting_conflict,
     mortality_time = mortality_time,
-    reporting_time = reporting_time
+    reporting_time = reporting_time,
+    use_mar_labels = use_mar_labels
   )
 
   if (meta$T < 2) {
@@ -181,6 +190,85 @@ vrc_standata <- function(
 
   post <- as.integer(seq_len(T) >= meta$t0)
 
+  # Prepare missing label data if present AND requested
+  N_miss <- nrow(df_miss)
+  if (N_miss > 0 && isTRUE(use_mar_labels)) {
+    if (!requireNamespace("dplyr", quietly = TRUE)) {
+      stop("Package 'dplyr' is required for missing labels", call. = FALSE)
+    }
+
+    # Identify shared grouping variables
+    join_cols <- c("time_id", "age_id", "sex_id", "cause_id")
+
+    # Create a reference for covariates/exposure by region
+    # We want one row per (time, age, sex) with columns for each region's exposure/conflict
+    # and shared covariates.
+
+    # First, get unique (time, age, sex) cells in df_miss
+    miss_cells <- df_miss |>
+      dplyr::select(dplyr::all_of(join_cols)) |>
+      dplyr::distinct()
+
+    # Join labeled data to these cells to get region-specific values
+    # We use a long-to-wide pivot approach conceptually, but simpler to just
+    # extract matrices.
+
+    exposure_miss <- matrix(0, N_miss, R)
+    conflict_miss <- matrix(0, N_miss, R)
+
+    # Shared covariates (assuming they don't vary by region for the same time/age/sex)
+    # Extract from X_mort and X_rep matrices
+    X_mort_miss <- matrix(0, N_miss, ncol(X_mort))
+    X_rep_miss <- matrix(0, N_miss, ncol(X_rep))
+
+    # To vectorize, we can join df_miss with df and then populate
+    # However, since Stan needs matrices of size N_miss x R, we need to match indices.
+
+    for (r_id in seq_len(R)) {
+      # Filter labeled data for this region
+      df_r <- df |> dplyr::filter(.data$region_id == r_id)
+
+      # Join to df_miss
+      matched_r <- df_miss |>
+        dplyr::select(-c(conflict, exposure)) |> # avoid duplicate columns
+        dplyr::left_join(
+          df_r |>
+            dplyr::select(dplyr::all_of(join_cols), "exposure", "conflict_z"),
+          by = join_cols
+        )
+
+      exposure_miss[, r_id] <- matched_r$exposure |> dplyr::coalesce(0)
+      conflict_miss[, r_id] <- matched_r$conflict_z |> dplyr::coalesce(0)
+    }
+
+    # For X_mort and X_rep, we assume they are the same across regions for a cell.
+    # We take the first available match from df for each row in df_miss.
+    df_covs <- df |>
+      dplyr::select(dplyr::all_of(join_cols)) |>
+      dplyr::mutate(.row_orig = dplyr::row_number()) |>
+      dplyr::group_by(dplyr::across(dplyr::all_of(join_cols))) |>
+      dplyr::slice(1) |>
+      dplyr::ungroup()
+
+    matched_covs <- df_miss |>
+      dplyr::left_join(df_covs, by = join_cols)
+
+    valid_matches <- !is.na(matched_covs$.row_orig)
+    row_indices <- matched_covs$.row_orig[valid_matches]
+
+    if (length(row_indices) > 0) {
+      X_mort_miss[valid_matches, ] <- X_mort[row_indices, , drop = FALSE]
+      X_rep_miss[valid_matches, ] <- X_rep[row_indices, , drop = FALSE]
+    }
+  } else {
+    exposure_miss <- matrix(0, 0, R)
+    conflict_miss <- matrix(0, 0, R)
+    X_mort_miss <- matrix(0, 0, ncol(X_mort))
+    X_rep_miss <- matrix(0, 0, ncol(X_rep))
+    N_miss <- 0
+    miss_index <- NULL
+  }
+
   standata <- list(
     N = nrow(df),
     R = R,
@@ -206,6 +294,17 @@ vrc_standata <- function(
     X_rep = X_rep,
     post = as_stan_array_int(post),
     t0 = as.integer(meta$t0),
+    N_miss = N_miss,
+    time_miss = as_stan_array_int(df_miss$time_id[seq_len(N_miss)]),
+    age_miss = as_stan_array_int(df_miss$age_id[seq_len(N_miss)]),
+    sex_miss = as_stan_array_int(df_miss$sex_id[seq_len(N_miss)]),
+    cause_miss = as_stan_array_int(df_miss$cause_id[seq_len(N_miss)]),
+    y_miss = as_stan_array_int(df_miss$y[seq_len(N_miss)]),
+    exposure_miss = exposure_miss,
+    conflict_miss = conflict_miss,
+    X_mort_miss = X_mort_miss,
+    X_rep_miss = X_rep_miss,
+    use_mar_labels = as.integer(use_mar_labels),
     prior_PD = as.integer(prior_PD)
   )
 

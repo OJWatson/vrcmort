@@ -172,6 +172,30 @@ The parameter $\phi_g > 0$ is a cause-specific dispersion parameter.
 
 This single likelihood implicitly marginalises over the latent true deaths $D$. You can still interpret the model generatively as "true deaths occur" then "some are recorded".
 
+## Handling missing region labels
+
+In some settings, a fraction of deaths recorded in VR are not assigned to a specific region (unlabeled deaths). `vrcmort` can account for these using a Missing At Random (MAR) assumption.
+
+Let $\omega \in (0,1)$ be the probability that a recorded death is correctly labeled with its region.
+
+### Labeled data likelihood
+For cells with a known region label, the likelihood is thinned by $\omega$:
+
+\[
+Y_{r,t,a,s,g} \sim \text{NegBin2}(\mu_{r,t,a,s,g} \cdot \omega,\, \phi_g).
+\]
+
+### Unlabeled data likelihood
+For deaths with missing region labels, we observe a national total $U_{t,a,s,g}$ for each cause, time, age, and sex. This total is the sum of the unlabeled contributions from all $R$ regions:
+
+\[
+U_{t,a,s,g} = \sum_{r=1}^R U_{r,t,a,s,g}, \quad \text{where} \quad U_{r,t,a,s,g} \sim \text{NegBin2}(\mu_{r,t,a,s,g} \cdot (1 - \omega),\, \phi_g).
+\]
+
+Because the sum of independent negative binomial variables with different means (but shared $\phi$) does not have a simple closed form, `vrcmort` uses an exact recurrence relation to compute this convolution likelihood in Stan.
+
+This feature is enabled by setting `use_mar_labels = TRUE` in the model fitting functions.
+
 ## Identifiability and anchoring
 
 From the likelihood alone, $\lambda$ and $\rho$ are only weakly identified because they appear as a product $\lambda \cdot \rho$.

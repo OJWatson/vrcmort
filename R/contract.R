@@ -121,6 +121,9 @@ vrc_validate_data <- function(
 
   # Basic checks on identifiers
   for (nm in id_cols) {
+    if (nm == "region") {
+      next
+    }
     if (any(is.na(data[[nm]]))) {
       stop("Identifier column contains NA: ", nm, call. = FALSE)
     }
@@ -146,8 +149,10 @@ vrc_validate_data <- function(
   if (any(is.na(expo))) {
     stop("`", exposure_col, "` contains NA", call. = FALSE)
   }
-  if (any(expo <= 0)) {
-    stop("`", exposure_col, "` must be > 0", call. = FALSE)
+  # Enforce positive exposure only for rows where region is not NA
+  labeled_idx <- which(!is.na(data$region))
+  if (any(expo[labeled_idx] <= 0)) {
+    stop("`", exposure_col, "` must be > 0 for labeled regions", call. = FALSE)
   }
 
   # Duplicated cell keys
@@ -269,25 +274,30 @@ vrc_index <- function(
       c(id_cols, "y", "exposure", "pop", "conflict")
     )
     gsyms <- rlang::syms(id_cols)
-    df <- dplyr::group_by(df, !!!gsyms)
-    df <- dplyr::summarise(
-      df,
-      y = sum(.data$y, na.rm = TRUE),
-      exposure = dplyr::first(.data$exposure),
-      pop = dplyr::first(.data$pop),
-      conflict = dplyr::first(.data$conflict),
-      dplyr::across(dplyr::all_of(other_cols), ~ dplyr::first(.x)),
-      .groups = "drop"
-    )
+    df <- df |>
+      dplyr::group_by(!!!gsyms) |>
+      dplyr::summarise(
+        y = sum(.data$y, na.rm = TRUE),
+        exposure = dplyr::first(.data$exposure),
+        pop = dplyr::first(.data$pop),
+        conflict = dplyr::first(.data$conflict),
+        dplyr::across(dplyr::all_of(other_cols), ~ dplyr::first(.x)),
+        .groups = "drop"
+      )
   }
 
-  # Factors for stable indexing
+  # Split into labeled and unlabeled data
+  is_miss <- is.na(df$region)
+  df_miss <- df[is_miss, , drop = FALSE]
+  df <- df[!is_miss, , drop = FALSE]
+
+  # Factors for stable indexing (using labeled data only for levels)
   df$region_f <- factor(df$region)
   df$age_f <- factor(df$age)
   df$sex_f <- factor(df$sex)
   df$cause_f <- factor(df$cause)
 
-  time_vals <- unique(df$time)
+  time_vals <- unique(c(df$time, df_miss$time))
   if (isTRUE(sort_time)) {
     time_vals <- sort(time_vals)
   }
@@ -298,6 +308,29 @@ vrc_index <- function(
   df$age_id <- as.integer(df$age_f)
   df$sex_id <- as.integer(df$sex_f)
   df$cause_id <- as.integer(df$cause_f)
+
+  # Process missing label data
+  if (nrow(df_miss) > 0) {
+    df_miss$time_f <- factor(df_miss$time, levels = time_vals)
+    df_miss$age_f <- factor(df_miss$age, levels = levels(df$age_f))
+    df_miss$sex_f <- factor(df_miss$sex, levels = levels(df$sex_f))
+    df_miss$cause_f <- factor(df_miss$cause, levels = levels(df$cause_f))
+
+    df_miss$time_id <- as.integer(df_miss$time_f)
+    df_miss$age_id <- as.integer(df_miss$age_f)
+    df_miss$sex_id <- as.integer(df_miss$sex_f)
+    df_miss$cause_id <- as.integer(df_miss$cause_f)
+
+    # Aggregate unlabeled data if not already unique
+    miss_keys <- c("time_id", "age_id", "sex_id", "cause_id")
+    df_miss <- df_miss |>
+      dplyr::summarise(
+        y = sum(.data$y, na.rm = TRUE),
+        exposure = 1, # Placeholder
+        conflict = 0,
+        .by = dplyr::all_of(miss_keys)
+      )
+  }
 
   # Compute t0 index if provided
   t0_index <- NA_integer_
@@ -331,7 +364,7 @@ vrc_index <- function(
     t0 = t0_index
   )
 
-  list(data = df, meta = meta)
+  list(data = df, data_miss = if (exists("df_miss")) df_miss else data.frame(), meta = meta)
 }
 
 #' Diagnose VR reporting artefacts
@@ -391,28 +424,27 @@ vrc_diagnose_reporting <- function(
   }
 
   # Summaries
-  totals_time <- dplyr::summarise(
-    dplyr::group_by(df, .data$time_id),
-    time = dplyr::first(.data$time),
-    total_y = sum(.data[[y_col]], na.rm = TRUE),
-    n_cells = dplyr::n(),
-    n_missing = sum(is.na(.data[[y_col]])),
-    .groups = "drop"
-  )
-
-  totals_time_cause <- dplyr::summarise(
-    dplyr::group_by(df, .data$time_id, .data$cause_label),
-    time = dplyr::first(.data$time),
-    total_y = sum(.data[[y_col]], na.rm = TRUE),
-    .groups = "drop"
-  )
-
-  cause_share <- dplyr::ungroup(
-    dplyr::mutate(
-      dplyr::group_by(totals_time_cause, .data$time_id),
-      share = .data$total_y / sum(.data$total_y)
+  totals_time <- df |>
+    dplyr::summarise(
+      time = dplyr::first(.data$time),
+      total_y = sum(.data[[y_col]], na.rm = TRUE),
+      n_cells = dplyr::n(),
+      n_missing = sum(is.na(.data[[y_col]])),
+      .by = "time_id"
     )
-  )
+
+  totals_time_cause <- df |>
+    dplyr::summarise(
+      time = dplyr::first(.data$time),
+      total_y = sum(.data[[y_col]], na.rm = TRUE),
+      .by = c("time_id", "cause_label")
+    )
+
+  cause_share <- totals_time_cause |>
+    dplyr::mutate(
+      share = .data$total_y / sum(.data$total_y),
+      .by = "time_id"
+    )
 
   # Pre vs post age composition (all causes)
   if (!is.na(meta$t0)) {
@@ -421,19 +453,15 @@ vrc_diagnose_reporting <- function(
     df$post <- NA_integer_
   }
 
-  age_comp <- dplyr::ungroup(
+  age_comp <- df |>
+    dplyr::summarise(
+      total_y = sum(.data[[y_col]], na.rm = TRUE),
+      .by = c("post", "age")
+    ) |>
     dplyr::mutate(
-      dplyr::group_by(
-        dplyr::summarise(
-          dplyr::group_by(df, .data$post, .data$age),
-          total_y = sum(.data[[y_col]], na.rm = TRUE),
-          .groups = "drop"
-        ),
-        .data$post
-      ),
-      share = .data$total_y / sum(.data$total_y)
+      share = .data$total_y / sum(.data$total_y),
+      .by = "post"
     )
-  )
 
   # Plots
   p_total <- ggplot2::ggplot(

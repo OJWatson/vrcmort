@@ -73,3 +73,6 @@
 
   // Dispersion (NB2)
   phi ~ exponential(prior_phi_rate);
+
+  // Labeling probability (MAR)
+  omega ~ beta(prior_omega_a, prior_omega_b);

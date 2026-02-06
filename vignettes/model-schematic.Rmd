@@ -46,6 +46,14 @@ knitr::include_graphics("figures/model_schematic.png")
 - The arrows from exposure and $\lambda$ to $D$ represent the death-generating process.
 - The arrow from $\rho$ to $Y$ represents under-reporting.
 
+### Optional: Labeling process
+
+When `use_mar_labels = TRUE`, the model adds a labeling process between the reporting process and the observed counts:
+
+- **Labeling probability** $\omega$ is the probability that a recorded death is correctly assigned to its region.
+- **Labeled counts** $Y_{r,t,a,s,g}$ are thinned by $\omega$.
+- **Unlabeled counts** $U_{t,a,s,g}$ are the sum of unassigned deaths from all regions.
+
 ### Key equation
 
 The expected observed count is the product of exposure, latent mortality, and completeness:

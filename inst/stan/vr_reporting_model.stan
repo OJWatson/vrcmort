@@ -7,6 +7,7 @@
 
 functions {
 #include "functions/rw1_centered.stan"
+#include "functions/neg_binomial_2_sum.stan"
 }
 
 data {

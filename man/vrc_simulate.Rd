@@ -40,7 +40,8 @@ vrc_simulate(
   sigma_v_rho_true = c(0.12, 0.08),
   sigma_v_rho_region_true = c(0, 0),
   age_penalty_non = NULL,
-  misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01)
+  misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01),
+  omega = 1
 )
 }
 \arguments{
@@ -139,6 +140,9 @@ penalty for non-trauma post-conflict.}
 
 \item{misclass}{A list with elements \code{p_non_to_trauma} and \code{p_trauma_to_non}
 giving misclassification probabilities among recorded deaths.}
+
+\item{omega}{Labeling probability (MAR). Probability that a recorded death
+is labeled with its true region.}
 }
 \value{
 A list with elements:

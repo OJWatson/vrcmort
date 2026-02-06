@@ -24,7 +24,8 @@ vrc_priors(
   sigma_v_rho_region = normal(0, 0.2, autoscale = FALSE),
   delta_age_incr = normal(0, 0.5, autoscale = FALSE),
   delta_age_scale = normal(0, 1, autoscale = FALSE),
-  phi = exponential(1)
+  phi = exponential(1),
+  omega = beta(5, 2)
 )
 }
 \arguments{
@@ -70,6 +71,8 @@ logit(0.70), cause 2 on logit(0.90), and remaining causes on logit(0.85).}
 \item{delta_age_scale}{Prior scale for the overall monotone age penalty scale.}
 
 \item{phi}{Prior for the NB2 dispersion parameter.}
+
+\item{omega}{Prior for the labeling probability (MAR).}
 }
 \value{
 A list of class \code{vrc_priors}.

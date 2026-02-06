@@ -75,6 +75,8 @@
 #'   penalty for non-trauma post-conflict.
 #' @param misclass A list with elements `p_non_to_trauma` and `p_trauma_to_non`
 #'   giving misclassification probabilities among recorded deaths.
+#' @param omega Labeling probability (MAR). Probability that a recorded death
+#'   is labeled with its true region.
 #'
 #' @details
 #' The `missing` argument allows additional missingness beyond the reporting
@@ -147,7 +149,8 @@ vrc_simulate <- function(
   sigma_v_rho_region_true = c(0.0, 0.0),
   age_penalty_non = NULL,
   # Misclassification between observed trauma and non-trauma (only among recorded deaths)
-  misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01)
+  misclass = list(p_non_to_trauma = 0.04, p_trauma_to_non = 0.01),
+  omega = 1.0
 ) {
   if (!is.null(seed)) {
     set.seed(seed)
@@ -486,6 +489,7 @@ vrc_simulate <- function(
   # ----------------------------
   D_true <- array(0L, dim = c(R, T, A, S, G))
   Y_obs <- array(0L, dim = c(R, T, A, S, G))
+  Y_miss_raw <- array(0L, dim = c(R, T, A, S, G))
 
   for (r in seq_len(R)) {
     for (t in seq_len(T)) {
@@ -497,17 +501,43 @@ vrc_simulate <- function(
             D_true[r, t, a, s, g_true] <- D
 
             rho <- rho_true[r, t, a, s, g_true]
-            p_obs1 <- rho * M[g_true, 1]
-            p_obs2 <- rho * M[g_true, 2]
-            p_unobs <- max(0, 1 - rho)
 
-            alloc <- as.integer(stats::rmultinom(
-              1,
-              size = D,
-              prob = c(p_obs1, p_obs2, p_unobs)
-            ))
-            Y_obs[r, t, a, s, 1] <- Y_obs[r, t, a, s, 1] + alloc[1]
-            Y_obs[r, t, a, s, 2] <- Y_obs[r, t, a, s, 2] + alloc[2]
+            # Labeling process: thinned by omega
+            # We use a Multinomial to partition D into (labeled_g1, labeled_g2, unlabeled, unrecorded)
+            # Actually, misclassification only happens among RECORDED deaths.
+            # So first decide if recorded:
+            num_recorded <- stats::rbinom(1, size = D, prob = rho)
+
+            # Among recorded, how many are labeled?
+            num_labeled <- stats::rbinom(1, size = num_recorded, prob = omega)
+            num_unlabeled <- num_recorded - num_labeled
+
+            # For labeled, apply misclassification
+            if (num_labeled > 0) {
+              alloc <- as.integer(stats::rmultinom(
+                1,
+                size = num_labeled,
+                prob = c(M[g_true, 1], M[g_true, 2])
+              ))
+              Y_obs[r, t, a, s, 1] <- Y_obs[r, t, a, s, 1] + alloc[1]
+              Y_obs[r, t, a, s, 2] <- Y_obs[r, t, a, s, 2] + alloc[2]
+            }
+
+            # For unlabeled, they sum up later. We keep track by region for truth.
+            if (num_unlabeled > 0) {
+              # Misclassification also applies to unlabeled?
+              # Task says "region is missing". It doesn't say cause is missing.
+              # So we assume cause is observed.
+              alloc_miss <- as.integer(stats::rmultinom(
+                1,
+                size = num_unlabeled,
+                prob = c(M[g_true, 1], M[g_true, 2])
+              ))
+              Y_miss_raw[r, t, a, s, 1] <- Y_miss_raw[r, t, a, s, 1] +
+                alloc_miss[1]
+              Y_miss_raw[r, t, a, s, 2] <- Y_miss_raw[r, t, a, s, 2] +
+                alloc_miss[2]
+            }
           }
         }
       }
@@ -540,6 +570,35 @@ vrc_simulate <- function(
     D_true[cbind(df$region, df$time, df$age, df$sex, 2)]
   ))
 
+  # Add unlabeled deaths as rows with region = NA
+  if (omega < 1) {
+    # Aggregate Y_miss_raw over regions
+    Y_miss_agg <- apply(Y_miss_raw, 2:5, sum)
+    df_miss <- expand.grid(
+      region = NA_integer_,
+      time = seq_len(T),
+      age = seq_len(A),
+      sex = seq_len(S),
+      cause = seq_len(G)
+    )
+    idx_miss <- with(df_miss, cbind(time, age, sex, cause))
+    df_miss$y <- Y_miss_agg[idx_miss]
+
+    # For missing region rows, we still need some baseline covariates
+    # (though they won't be used for mu_r calculation in standata,
+    # we need them for data frame consistency)
+    df_miss$pop <- 1
+    df_miss$exposure <- 1
+    df_miss$conflict <- 0
+    df_miss$facility <- 0
+    df_miss$post <- post_t[df_miss$time]
+    df_miss$y_true_total <- 0
+
+    # Filter out rows with zero unlabeled deaths to keep it sparse if desired,
+    # but here we keep all for simplicity.
+    df <- rbind(df, df_miss)
+  }
+
   # ----------------------------
   # Apply additional missingness patterns
   # ----------------------------
@@ -558,7 +617,11 @@ vrc_simulate <- function(
           block_drop[r, t] <- (stats::runif(1) < p)
         }
       }
-      df$missing_flag <- df$missing_flag | block_drop[cbind(df$region, df$time)]
+      idx_labeled <- !is.na(df$region)
+      if (any(idx_labeled)) {
+        df$missing_flag[idx_labeled] <- df$missing_flag[idx_labeled] |
+          block_drop[cbind(df$region[idx_labeled], df$time[idx_labeled])]
+      }
     }
 
     if (
@@ -612,6 +675,7 @@ vrc_simulate <- function(
     rho_true = rho_true,
     D_true = D_true,
     Y_obs = Y_obs,
+    Y_miss_raw = Y_miss_raw,
     params = list(
       alpha0_true = alpha0_true,
       beta_conf_true = beta_conf_true,
@@ -631,7 +695,8 @@ vrc_simulate <- function(
       sigma_v_rho_region_true = sigma_v_rho_region_true,
       age_penalty_non = age_penalty_non,
       misclass = misclass,
-      M = M
+      M = M,
+      omega = omega
     )
   )
 
