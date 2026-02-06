@@ -105,12 +105,17 @@ Latent (true) mortality rate:
 Reporting completeness probability:
 - `ρ_{r,t,a,s,g} in (0, 1)`
 
-Expected observed count:
-- `μ_{r,t,a,s,g} = E_{r,t,a,s} * λ_{r,t,a,s,g} * ρ_{r,t,a,s,g}`
+Labeling probability (MAR):
+- `ω in (0, 1)`: probability that a recorded death is correctly labeled with its true region.
+
+Expected observed counts:
+- Labeled: `μ_{r,t,a,s,g} = E_{r,t,a,s} * λ_{r,t,a,s,g} * ρ_{r,t,a,s,g} * ω`
+- Unlabeled sum: `μ_{miss,t,a,s,g} = Σ_r [ E_{r,t,a,s} * λ_{r,t,a,s,g} * ρ_{r,t,a,s,g} * (1 - ω) ]`
 
 Likelihood:
 - baseline is Negative Binomial (NB2) for robustness:
-  - `Y ~ NegBin2(μ, φ_g)` with cause-specific dispersion `φ_g`
+  - Labeled: `Y_{r,t,a,s,g} ~ NegBin2(μ_{r,t,a,s,g}, φ_g)`
+  - Unlabeled: `Y_{miss,t,a,s,g} ~ Convolution of NegBin2 components` (implemented exactly in Stan using a stable recurrence relation)
 
 This is implemented in Stan.
 

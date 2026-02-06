@@ -17,6 +17,7 @@ vrc_fit(
   scale_binary = FALSE,
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
+  use_mar_labels = FALSE,
   algorithm = c("sampling", "meanfield", "fullrank"),
   priors = NULL,
   prior_PD = FALSE,
@@ -60,6 +61,10 @@ fitting.}
 
 \item{duplicates}{How to handle duplicate identifier rows. One of
 \code{"error"} (default) or \code{"sum"}.}
+
+\item{use_mar_labels}{Logical. If TRUE, account for missing region labels
+using a Missing At Random (MAR) assumption with a labeling probability
+\code{omega}. If FALSE (default), rows with missing region labels are ignored.}
 
 \item{algorithm}{One of \code{"sampling"}, \code{"meanfield"}, or \code{"fullrank"} (passed to \code{rstan}).}
 

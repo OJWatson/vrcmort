@@ -1,0 +1,77 @@
+---
+title: "Missing region labels"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Missing region labels}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## Introduction
+
+In many vital registration (VR) systems, especially during periods of instability, some death records may be recorded at the national level without a specific region label. Excluding these records from a sub-national model can bias mortality estimates downwards.
+
+`vrcmort` supports including these unlabeled counts by assuming they are "missing at random" (MAR) with respect to the labeling process. That is, each recorded death has some probability $\omega$ of being correctly labeled with its region, and a probability $1 - \omega$ of having its region label missing.
+
+## Simulating missing labels
+
+The `vrc_simulate()` function now supports an `omega` parameter to generate thinned labeled counts and an aggregated unlabeled count.
+
+```{r}
+library(vrcmort)
+
+# Simulate data with 70% labeling probability
+sim <- vrc_simulate(
+  R = 5, 
+  T = 24, 
+  t0 = 12, 
+  seed = 123, 
+  omega = 0.7
+)
+
+# Labeled data (contains region labels)
+head(sim$df_obs)
+
+# Check for rows with missing regions in the full data frame
+df_miss <- sim$df_full[is.na(sim$df_full$region), ]
+summary(df_miss$y)
+```
+
+## Fitting the model
+
+To enable this feature, set `use_mar_labels = TRUE` in `vrc_fit()` or `vrcm()`. When this flag is on, rows with `NA` in the `region` column are incorporated into the likelihood using an exact convolution of the latent Negative Binomial distributions for each region.
+
+```{r, eval=FALSE}
+fit <- vrc_fit(
+  data = sim$df_full,
+  t0 = sim$meta$t0,
+  use_mar_labels = TRUE,
+  chains = 4,
+  iter = 1000,
+  seed = 123
+)
+
+# Examine the estimated labeling probability
+summary(fit, pars = "omega")
+```
+
+## Technical details
+
+For each cell defined by time ($t$), age ($a$), sex ($s$), and cause ($g$), let $\mu_{r,t,a,s,g}$ be the expected count of recorded deaths for region $r$.
+
+If a death is labeled with its region with probability $\omega$, then the labeled counts $Y_{r,t,a,s,g}$ follow:
+$$Y_{r,t,a,s,g} \sim 	ext{NegBin2}(\omega \mu_{r,t,a,s,g}, \phi_g)$$
+
+The unlabeled sum $Y_{m,t,a,s,g} = \sum_r Y_{r,t,a,s,g}^{miss}$ follows a convolution of the individual region missing counts:
+$$Y_{r,t,a,s,g}^{miss} \sim 	ext{NegBin2}((1-\omega) \mu_{r,t,a,s,g}, \phi_g)$$
+
+`vrcmort` implements this convolution exactly using a recurrence relation, allowing for efficient and accurate inference of the latent mortality rates even when a significant fraction of data is unlabeled.

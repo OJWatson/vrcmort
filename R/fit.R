@@ -27,6 +27,9 @@
 #'   fitting.
 #' @param duplicates How to handle duplicate identifier rows. One of
 #'   `"error"` (default) or `"sum"`.
+#' @param use_mar_labels Logical. If TRUE, account for missing region labels
+#'   using a Missing At Random (MAR) assumption with a labeling probability
+#'   `omega`. If FALSE (default), rows with missing region labels are ignored.
 #' @param algorithm One of `"sampling"`, `"meanfield"`, or `"fullrank"` (passed to `rstan`).
 #' @param priors Optional prior specification created by [vrc_priors()]. If
 #'   `NULL` (default), uses [vrc_priors()] with package defaults.
@@ -50,6 +53,7 @@ vrc_fit <- function(
   scale_binary = FALSE,
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
+  use_mar_labels = FALSE,
   algorithm = c("sampling", "meanfield", "fullrank"),
   priors = NULL,
   prior_PD = FALSE,
@@ -79,6 +83,7 @@ vrc_fit <- function(
     scale_binary = scale_binary,
     drop_na_y = drop_na_y,
     duplicates = duplicates,
+    use_mar_labels = use_mar_labels,
     priors = priors,
     prior_PD = prior_PD
   )

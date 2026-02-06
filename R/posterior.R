@@ -110,6 +110,7 @@ posterior_predict <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
 }
 
 #' @keywords internal
+#' @importFrom rlang :=
 .posterior_cell_summary <- function(x, var, draws, probs, prefix) {
   if (!inherits(x, "vrcfit")) {
     stop("x must be a vrcfit object", call. = FALSE)
@@ -134,19 +135,23 @@ posterior_predict <- function(x, draws = FALSE, probs = c(0.1, 0.5, 0.9), ...) {
   }
 
   # Summarise by column (cell)
-  mean_ <- apply(mat, 2, mean)
+  mean_ <- colMeans(mat)
   sd_ <- apply(mat, 2, stats::sd)
-  qs <- t(apply(mat, 2, stats::quantile, probs = probs))
+  qs <- apply(mat, 2, stats::quantile, probs = probs) |> t()
+  
   colnames(qs) <- paste0(
     prefix,
     "_q",
     gsub("\\.", "", format(probs, trim = TRUE))
   )
 
-  out <- x$data
-  out[[paste0(prefix, "_mean")]] <- as.numeric(mean_)
-  out[[paste0(prefix, "_sd")]] <- as.numeric(sd_)
+  out <- x$data |>
+    dplyr::mutate(
+      !!paste0(prefix, "_mean") := as.numeric(mean_),
+      !!paste0(prefix, "_sd")   := as.numeric(sd_)
+    )
 
+  # Add quantiles
   for (j in seq_len(ncol(qs))) {
     out[[colnames(qs)[j]]] <- qs[, j]
   }

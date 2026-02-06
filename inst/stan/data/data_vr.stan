@@ -36,6 +36,25 @@
   array[T] int<lower=0, upper=1> post;
   int<lower=1, upper=T> t0;
 
+  // Unlabeled (missing region) data
+  int<lower=0> N_miss;
+  array[N_miss] int<lower=1, upper=T> time_miss;
+  array[N_miss] int<lower=1, upper=A> age_miss;
+  array[N_miss] int<lower=1, upper=S> sex_miss;
+  array[N_miss] int<lower=1, upper=G> cause_miss;
+  array[N_miss] int<lower=0> y_miss;
+  matrix[N_miss, R] exposure_miss;
+  matrix[N_miss, R] conflict_miss;
+
+  matrix[N_miss, K_mort] X_mort_miss;
+  matrix[N_miss, K_rep] X_rep_miss;
+  // We need to know which regions are active for each missing observation.
+  // For simplicity, we assume ALL regions R contribute to each y_miss.
+  // If some regions have no exposure, they won't contribute.
+
+  // 1 = use missing label likelihood, 0 = ignore
+  int<lower=0, upper=1> use_mar_labels;
+
   // prior predictive mode
   int<lower=0, upper=1> prior_PD;
 
@@ -76,3 +95,6 @@
   real<lower=0> prior_delta_age_scale_scale;
 
   vector<lower=0>[G] prior_phi_rate;
+
+  real<lower=0> prior_omega_a;
+  real<lower=0> prior_omega_b;

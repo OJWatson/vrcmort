@@ -49,3 +49,6 @@
 
   // Observation dispersion (NB2)
   vector<lower=0>[G] phi;
+
+  // Labeling probability (MAR)
+  real<lower=0, upper=1> omega;

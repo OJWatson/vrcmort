@@ -1,3 +1,11 @@
+# vrcmort 0.0.9
+
+- Added support for handling missing region labels in VR counts using a Missing At Random (MAR) assumption.
+- Implemented an exact Negative Binomial convolution likelihood in Stan for marginalized inference over unlabeled counts.
+- Added `omega` parameter for the labeling probability with a default `beta(5, 2)` prior.
+- New `use_mar_labels` toggle in `vrcm()`, `vrc_fit()`, and `vrc_standata()` (off by default).
+- Updated `vrc_simulate()` to support generating data with missing labels.
+
 # vrcmort 0.0.8
 
 - pkgdown website referencing completed
