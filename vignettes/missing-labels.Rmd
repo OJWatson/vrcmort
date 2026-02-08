@@ -48,7 +48,7 @@ summary(df_miss$y)
 
 ## Fitting the model
 
-To enable this feature, set `use_mar_labels = TRUE` in `vrc_fit()` or `vrcm()`. When this flag is on, rows with `NA` in the `region` column are incorporated into the likelihood using an exact convolution of the latent Negative Binomial distributions for each region.
+To enable this feature, set `use_mar_labels = TRUE` in `vrc_fit()` or `vrcm()`. When this flag is on, rows with `NA` in the `region` column are incorporated into the likelihood using an exact convolution of the latent Negative Binomial distributions for each region. Missing labels are expected for all combinations of age, sex, cause, and will be imputed as zero (with a warning) if not provided.
 
 ```{r, eval=FALSE}
 fit <- vrc_fit(
@@ -56,6 +56,7 @@ fit <- vrc_fit(
   t0 = sim$meta$t0,
   use_mar_labels = TRUE,
   chains = 4,
+  cores = 4,
   iter = 1000,
   seed = 123
 )

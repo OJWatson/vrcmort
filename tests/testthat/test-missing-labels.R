@@ -12,10 +12,10 @@ test_that("vrc_standata handles missing labels correctly", {
   )
 
   sd <- sdat$standata
-  expect_gt(sd$N_miss, 0)
+  expect_gt(sd$N, 0)
   expect_equal(sd$use_mar_labels, 1)
-  expect_equal(ncol(sd$exposure_miss), sd$R)
-  expect_equal(nrow(sd$exposure_miss), sd$N_miss)
+  expect_equal(ncol(sd$exposure), sd$R)
+  expect_equal(nrow(sd$exposure), sd$N)
 
   # Check that y_miss matches the sum of unlabeled in truth
   expect_equal(sum(sd$y_miss), sum(sim$truth$Y_miss_raw))

@@ -154,7 +154,8 @@ print.vrcfit <- function(x, ...) {
     cat("- Stan file:", x$stan_file, "\n")
   }
   cat("- Algorithm:", x$algorithm, "\n")
-  cat("- N (observed cells):", x$standata$N, "\n")
+  cat("- N (observed groups):", x$standata$N, "\n")
+  cat("- N (observed cells):", x$standata$N * x$standata$R, "\n")
   cat(
     "- Dimensions: R=",
     x$standata$R,

@@ -147,9 +147,80 @@ vrc_standata <- function(
     conflict_scaling <- list(x = NULL, centre = 0, scale = 1)
   }
 
-  # Model matrices
-  X_mort <- model_matrix_no_intercept(mortality_covariates, df)
-  X_rep <- model_matrix_no_intercept(reporting_covariates, df)
+  R <- meta$R
+  T <- meta$T
+  A <- meta$A
+  S <- meta$S
+  G <- meta$G
+
+  # ---------------------------------------------------------
+  # Grouped data preparation
+  # ---------------------------------------------------------
+  # We want N groups of (time, age, sex, cause)
+  join_cols <- c("time_id", "age_id", "sex_id", "cause_id")
+
+  groups_in_df <- df |> dplyr::distinct(dplyr::across(dplyr::all_of(join_cols)))
+  groups_in_miss <- df_miss |>
+    dplyr::distinct(dplyr::across(dplyr::all_of(join_cols)))
+
+  all_groups <- dplyr::union(groups_in_df, groups_in_miss) |>
+    dplyr::arrange(.data$time_id, .data$age_id, .data$sex_id, .data$cause_id)
+
+  N_groups <- nrow(all_groups)
+
+  # Ensure df_miss is complete
+  df_miss_final <- all_groups |>
+    dplyr::left_join(df_miss, by = join_cols)
+
+  if (any(is.na(df_miss_final$y))) {
+    warning(
+      "Some cells with labeled deaths have no corresponding missing-region entry. Imputing y_miss = 0.",
+      call. = FALSE
+    )
+    df_miss_final$y[is.na(df_miss_final$y)] <- 0
+  }
+
+  # Ensure df is complete for all regions and groups
+  grid <- expand.grid(
+    region_id = seq_len(R),
+    group_id = seq_len(N_groups),
+    stringsAsFactors = FALSE
+  )
+
+  df_complete <- grid |>
+    dplyr::inner_join(
+      all_groups |> dplyr::mutate(group_id = dplyr::row_number()),
+      by = "group_id"
+    ) |>
+    dplyr::left_join(df, by = c(join_cols, "region_id")) |>
+    dplyr::arrange(.data$group_id, .data$region_id)
+
+  # Impute missing values in df_complete
+  if (any(is.na(df_complete$y))) {
+    warning("Some region-cells have missing y. Imputing y = 0.", call. = FALSE)
+    df_complete$y[is.na(df_complete$y)] <- 0
+  }
+  if (any(is.na(df_complete$exposure))) {
+    warning("Some region-cells have missing exposure. Imputing small exposure (1e-9).", call. = FALSE)
+    df_complete$exposure[is.na(df_complete$exposure)] <- 1e-9
+  }
+  if (any(is.na(df_complete$conflict_z))) {
+    df_complete$conflict_z[is.na(df_complete$conflict_z)] <- 0
+  }
+
+  # Model matrices (calculated on completed data)
+  X_mort <- model_matrix_no_intercept(mortality_covariates, df_complete)
+  X_rep <- model_matrix_no_intercept(reporting_covariates, df_complete)
+
+  # Impute NA in covariates if any
+  if (any(is.na(X_mort))) {
+    warning("Some missing values in mortality covariates. Imputing 0.", call. = FALSE)
+    X_mort[is.na(X_mort)] <- 0
+  }
+  if (any(is.na(X_rep))) {
+    warning("Some missing values in reporting covariates. Imputing 0.", call. = FALSE)
+    X_rep[is.na(X_rep)] <- 0
+  }
 
   if (standardise) {
     X_mort <- standardise_matrix(X_mort, scale_binary = scale_binary)
@@ -166,12 +237,6 @@ vrc_standata <- function(
       colnames = colnames(X_rep)
     )
   }
-
-  R <- meta$R
-  T <- meta$T
-  A <- meta$A
-  S <- meta$S
-  G <- meta$G
 
   if (G < 2) {
     stop(
@@ -190,100 +255,31 @@ vrc_standata <- function(
 
   post <- as.integer(seq_len(T) >= meta$t0)
 
-  # Prepare missing label data if present AND requested
-  N_miss <- nrow(df_miss)
-  if (N_miss > 0 && isTRUE(use_mar_labels)) {
-    if (!requireNamespace("dplyr", quietly = TRUE)) {
-      stop("Package 'dplyr' is required for missing labels", call. = FALSE)
-    }
-
-    # Identify shared grouping variables
-    join_cols <- c("time_id", "age_id", "sex_id", "cause_id")
-
-    # Create a reference for covariates/exposure by region
-    # We want one row per (time, age, sex) with columns for each region's exposure/conflict
-    # and shared covariates.
-
-    # First, get unique (time, age, sex) cells in df_miss
-    miss_cells <- df_miss |>
-      dplyr::select(dplyr::all_of(join_cols)) |>
-      dplyr::distinct()
-
-    # Join labeled data to these cells to get region-specific values
-    # We use a long-to-wide pivot approach conceptually, but simpler to just
-    # extract matrices.
-
-    exposure_miss <- matrix(0, N_miss, R)
-    conflict_miss <- matrix(0, N_miss, R)
-
-    # Shared covariates (assuming they don't vary by region for the same time/age/sex)
-    # Extract from X_mort and X_rep matrices
-    X_mort_miss <- matrix(0, N_miss, ncol(X_mort))
-    X_rep_miss <- matrix(0, N_miss, ncol(X_rep))
-
-    # To vectorize, we can join df_miss with df and then populate
-    # However, since Stan needs matrices of size N_miss x R, we need to match indices.
-
-    for (r_id in seq_len(R)) {
-      # Filter labeled data for this region
-      df_r <- df |> dplyr::filter(.data$region_id == r_id)
-
-      # Join to df_miss
-      matched_r <- df_miss |>
-        dplyr::select(-c(conflict, exposure)) |> # avoid duplicate columns
-        dplyr::left_join(
-          df_r |>
-            dplyr::select(dplyr::all_of(join_cols), "exposure", "conflict_z"),
-          by = join_cols
-        )
-
-      exposure_miss[, r_id] <- matched_r$exposure |> dplyr::coalesce(0)
-      conflict_miss[, r_id] <- matched_r$conflict_z |> dplyr::coalesce(0)
-    }
-
-    # For X_mort and X_rep, we assume they are the same across regions for a cell.
-    # We take the first available match from df for each row in df_miss.
-    df_covs <- df |>
-      dplyr::select(dplyr::all_of(join_cols)) |>
-      dplyr::mutate(.row_orig = dplyr::row_number()) |>
-      dplyr::group_by(dplyr::across(dplyr::all_of(join_cols))) |>
-      dplyr::slice(1) |>
-      dplyr::ungroup()
-
-    matched_covs <- df_miss |>
-      dplyr::left_join(df_covs, by = join_cols)
-
-    valid_matches <- !is.na(matched_covs$.row_orig)
-    row_indices <- matched_covs$.row_orig[valid_matches]
-
-    if (length(row_indices) > 0) {
-      X_mort_miss[valid_matches, ] <- X_mort[row_indices, , drop = FALSE]
-      X_rep_miss[valid_matches, ] <- X_rep[row_indices, , drop = FALSE]
-    }
-  } else {
-    exposure_miss <- matrix(0, 0, R)
-    conflict_miss <- matrix(0, 0, R)
-    X_mort_miss <- matrix(0, 0, ncol(X_mort))
-    X_rep_miss <- matrix(0, 0, ncol(X_rep))
-    N_miss <- 0
-    miss_index <- NULL
-  }
-
+  # Prepare Stan data list
   standata <- list(
-    N = nrow(df),
+    N = N_groups,
     R = R,
     T = T,
     A = A,
     S = S,
     G = G,
-    region = as_stan_array_int(df$region_id),
-    time = as_stan_array_int(df$time_id),
-    age = as_stan_array_int(df$age_id),
-    sex = as_stan_array_int(df$sex_id),
-    cause = as_stan_array_int(df$cause_id),
-    y = as_stan_array_int(df$y),
-    exposure = as_stan_array(df$exposure),
-    conflict = as_stan_array(df$conflict_z),
+    time = as_stan_array_int(all_groups$time_id),
+    age = as_stan_array_int(all_groups$age_id),
+    sex = as_stan_array_int(all_groups$sex_id),
+    cause = as_stan_array_int(all_groups$cause_id),
+    y = matrix(df_complete$y, nrow = N_groups, ncol = R, byrow = TRUE),
+    exposure = matrix(
+      df_complete$exposure,
+      nrow = N_groups,
+      ncol = R,
+      byrow = TRUE
+    ),
+    conflict = matrix(
+      df_complete$conflict_z,
+      nrow = N_groups,
+      ncol = R,
+      byrow = TRUE
+    ),
     use_beta_conf_re = as.integer(mortality_conflict == "region"),
     use_gamma_conf_re = as.integer(reporting_conflict == "region"),
     use_rw_region_lambda = as.integer(mortality_time == "region"),
@@ -294,16 +290,7 @@ vrc_standata <- function(
     X_rep = X_rep,
     post = as_stan_array_int(post),
     t0 = as.integer(meta$t0),
-    N_miss = N_miss,
-    time_miss = as_stan_array_int(df_miss$time_id[seq_len(N_miss)]),
-    age_miss = as_stan_array_int(df_miss$age_id[seq_len(N_miss)]),
-    sex_miss = as_stan_array_int(df_miss$sex_id[seq_len(N_miss)]),
-    cause_miss = as_stan_array_int(df_miss$cause_id[seq_len(N_miss)]),
-    y_miss = as_stan_array_int(df_miss$y[seq_len(N_miss)]),
-    exposure_miss = exposure_miss,
-    conflict_miss = conflict_miss,
-    X_mort_miss = X_mort_miss,
-    X_rep_miss = X_rep_miss,
+    y_miss = as_stan_array_int(df_miss_final$y),
     use_mar_labels = as.integer(use_mar_labels),
     prior_PD = as.integer(prior_PD)
   )
@@ -327,7 +314,8 @@ vrc_standata <- function(
 
   list(
     standata = standata,
-    df = df,
+    df = df_complete |>
+      dplyr::select(-dplyr::any_of(c("group_id", ".group_id"))),
     meta = meta,
     scaling = scaling,
     priors = if (is.null(priors)) vrc_priors() else priors,

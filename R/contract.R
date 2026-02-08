@@ -330,6 +330,10 @@ vrc_index <- function(
         conflict = 0,
         .by = dplyr::all_of(miss_keys)
       )
+  } else {
+    for (nm in c("time_id", "age_id", "sex_id", "cause_id")) {
+      df_miss[[nm]] <- integer(0)
+    }
   }
 
   # Compute t0 index if provided
@@ -364,7 +368,11 @@ vrc_index <- function(
     t0 = t0_index
   )
 
-  list(data = df, data_miss = if (exists("df_miss")) df_miss else data.frame(), meta = meta)
+  list(
+    data = df,
+    data_miss = if (exists("df_miss")) df_miss else data.frame(),
+    meta = meta
+  )
 }
 
 #' Diagnose VR reporting artefacts
