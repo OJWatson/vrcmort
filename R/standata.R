@@ -169,15 +169,22 @@ vrc_standata <- function(
   N_groups <- nrow(all_groups)
 
   # Ensure df_miss is complete
-  df_miss_final <- all_groups |>
-    dplyr::left_join(df_miss, by = join_cols)
+  if (!use_mar_labels || nrow(df_miss) == 0L) {
+    # When MAR labels are not used or there are no missing-label rows,
+    # default y_miss to 0 for all groups without issuing a warning.
+    df_miss_final <- all_groups
+    df_miss_final$y <- 0
+  } else {
+    df_miss_final <- all_groups |>
+      dplyr::left_join(df_miss, by = join_cols)
 
-  if (any(is.na(df_miss_final$y))) {
-    warning(
-      "Some cells with labeled deaths have no corresponding missing-region entry. Imputing y_miss = 0.",
-      call. = FALSE
-    )
-    df_miss_final$y[is.na(df_miss_final$y)] <- 0
+    if (any(is.na(df_miss_final$y))) {
+      warning(
+        "Some cells with labeled deaths have no corresponding missing-region entry. Imputing y_miss = 0.",
+        call. = FALSE
+      )
+      df_miss_final$y[is.na(df_miss_final$y)] <- 0
+    }
   }
 
   # Ensure df is complete for all regions and groups
