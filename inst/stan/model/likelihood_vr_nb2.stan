@@ -9,6 +9,7 @@
       int s = sex[j];
 
       vector[R] mus;
+      
       for (r in 1:R) {
         int i = (j - 1) * R + r;
         real mort_x = 0;
@@ -48,7 +49,7 @@
       }
 
       if (use_mar_labels == 1) {
-        target += neg_binomial_2_sum_lpmf(y_miss[j] | mus * (1 - omega), phi[g]);
+        target += neg_binomial_2_sum_fast_lpmf(y_miss[j] | mus * (1 - omega), phi[g]);
       }
     }
   }

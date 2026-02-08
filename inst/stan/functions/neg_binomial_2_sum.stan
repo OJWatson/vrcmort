@@ -53,3 +53,30 @@
 
     return lp[y + 1];
   }
+
+  /**
+   * Log PMF of the sum of independent Negative Binomial 2 variables
+   * using an moment matching, should be faster than the full method
+   *
+   * @param y Observed sum
+   * @param mus Vector of means for each component
+   * @param phi Dispersion parameter (shared)
+   * @return Log probability mass
+   */
+  real neg_binomial_2_sum_fast_lpmf(int y, vector mus, real phi) {
+
+    real mus_sum = 0;
+    real mus_var_diff = 0;
+
+    int R = num_elements(mus);
+
+    for (r in 1:R) {
+      mus_sum += mus[r];
+      mus_var_diff += square(mus[r]) / phi;
+    }
+
+    real phi_eff = square(mus_sum) / mus_var_diff;
+
+    return neg_binomial_2_lpmf(y | mus_sum, phi_eff);
+  }
+  

@@ -44,6 +44,7 @@
 
       lambda_rep[i] = exp(log_lambda_r);
       rho_rep[i] = inv_logit(logit_rho_r);
+      
       mu_rep[i] = exposure[j, r] * lambda_rep[i] * rho_rep[i] * (use_mar_labels == 1 ? omega : 1.0);
 
       // Posterior predictive draw
@@ -56,7 +57,7 @@
     }
 
     if (use_mar_labels == 1) {
-      log_lik_miss[j] = neg_binomial_2_sum_lpmf(y_miss[j] | mus * (1 - omega), phi[g]);
+      log_lik_miss[j] = neg_binomial_2_sum_fast_lpmf(y_miss[j] | mus * (1 - omega), phi[g]);
     } else {
       log_lik_miss[j] = 0;
     }
