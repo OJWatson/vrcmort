@@ -1,0 +1,285 @@
+---
+title: "Fast Fitting Strategies"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fast Fitting Strategies}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  message = FALSE,
+  warning = FALSE
+)
+
+rstan::rstan_options(auto_write = TRUE)
+options(mc.cores = max(1L, min(4L, parallel::detectCores())))
+```
+
+This vignette explores practical ways to make `vrcmort` fits faster, focusing on the no-covariate setting (`~ 1`) and small examples that run quickly.
+
+## Simulate a tiny example
+
+We use a deliberately small dataset:
+
+- 3 regions
+- 10 time points
+- conflict begins at time 6 (5 pre, 5 post)
+- 5 age groups
+
+```{r}
+library(vrcmort)
+
+sim_fast <- vrc_simulate(
+  R = 3,
+  T = 10,
+  t0 = 6,
+  age_breaks = c(0, 5, 15, 35, 65, Inf),
+  seed = 123,
+  missing = list(type = "none"),
+  rho0_true = c(0.99, 0.99)
+)
+
+df <- sim_fast$df_obs
+
+head(df)
+```
+
+```{r}
+# Standata dimensions for reference
+sd <- vrc_fit(
+  data = df,
+  t0 = sim_fast$meta$t0,
+  chains = 0
+)
+
+sd$meta
+c(N = sd$standata$N, R = sd$standata$R, T = sd$standata$T, A = sd$standata$A, S = sd$standata$S, G = sd$standata$G)
+```
+
+## Baseline fit (default structure)
+
+The default `vrc_mortality(~ 1)` and `vrc_reporting(~ 1)` already include:
+
+- region random intercepts (mortality and reporting)
+- national time random walks (mortality and reporting)
+- conflict effects in both processes
+
+```{r}
+mort <- vrc_mortality(~ 1)
+rep  <- vrc_reporting(~ 1)
+
+tm_base <- system.time({
+  fit_base <- vrcm(
+    mortality = mort,
+    reporting = rep,
+    data = df,
+    t0 = sim_fast$meta$t0,
+    chains = 2,
+    iter = 250,
+    seed = 123,
+    refresh = 0
+  )
+})
+
+tm_base
+
+print(fit_base)
+```
+
+## Fix pre-conflict reporting to 1 (new fast model variant)
+
+In some settings it is reasonable to assume the VR system was essentially complete pre-conflict (or to deliberately anchor the model that way for a first pass). This can reduce posterior dependence between the mortality and reporting components.
+
+This package ships an additional Stan model variant, `vr_reporting_model_rho1_pre`, which assumes:
+
+- pre-conflict: `rho = 1` (fully observed)
+- post-conflict: `rho` follows the usual reporting process
+
+```{r}
+tm_rho1 <- system.time({
+  fit_rho1 <- vrcm(
+    mortality = mort,
+    reporting = rep,
+    data = df,
+    t0 = sim_fast$meta$t0,
+    stan_model = "vr_reporting_model_rho1_pre",
+    chains = 2,
+    iter = 250,
+    seed = 123,
+    refresh = 0
+  )
+})
+
+tm_rho1
+
+print(fit_rho1)
+```
+
+## Time structure: national vs region-specific deviations
+
+The base Stan model supports optional region-specific random-walk deviations around the national time trend. This can be important for real applications but can also be a major cost driver when `R` and `T` are large.
+
+Here we fit the same dataset with region-specific time deviations enabled.
+
+```{r}
+mort_region_time <- vrc_mortality(~ 1, time = "region")
+rep_region_time  <- vrc_reporting(~ 1, time = "region")
+
+tm_region_time <- system.time({
+  fit_region_time <- vrcm(
+    mortality = mort_region_time,
+    reporting = rep_region_time,
+    data = df,
+    t0 = sim_fast$meta$t0,
+    chains = 2,
+    iter = 200,
+    seed = 123,
+    refresh = 0
+  )
+})
+
+tm_region_time
+
+print(fit_region_time)
+```
+
+## Collapsing age groups
+
+A large share of runtime comes from evaluating the likelihood over all observed cells `N`. If you collapse age groups, `N` decreases, often substantially.
+
+Below we collapse 5 age groups into 3 groups and compare the resulting `N`.
+
+```{r}
+df_age3 <- df
+
+age_id <- as.integer(df_age3$age)
+df_age3$age <- ifelse(age_id %in% c(1, 2), "0-14",
+               ifelse(age_id %in% c(3), "15-34", "35+"))
+df_age3$age <- factor(df_age3$age, levels = c("0-14", "15-34", "35+"))
+
+# Collapsing age groups creates duplicate identifier rows; aggregate to restore
+# one row per (region,time,age,sex,cause) cell.
+df_age3 <- dplyr::as_tibble(df_age3)
+df_age3 <- dplyr::summarise(
+  dplyr::group_by(df_age3, region, time, age, sex, cause),
+  y = sum(y),
+  exposure = sum(exposure),
+  conflict = dplyr::first(conflict),
+  .groups = "drop"
+)
+df_age3 <- as.data.frame(df_age3)
+
+sd0 <- vrc_fit(data = df, t0 = sim_fast$meta$t0, chains = 0)
+sd1 <- vrc_fit(data = df_age3, t0 = sim_fast$meta$t0, chains = 0)
+
+c(N_original = sd0$standata$N, A_original = sd0$standata$A,
+  N_age3 = sd1$standata$N, A_age3 = sd1$standata$A)
+```
+
+To actually fit the collapsed-age model, you can reuse the same Stan program (it adapts automatically to the new `A`):
+
+```{r}
+tm_age3 <- system.time({
+  fit_age3 <- vrcm(
+    mortality = mort,
+    reporting = rep,
+    data = df_age3,
+    t0 = sim_fast$meta$t0,
+    chains = 2,
+    iter = 200,
+    seed = 123,
+    refresh = 0
+  )
+})
+
+tm_age3
+
+print(fit_age3)
+```
+
+## Variational Bayes (VB) for rapid first passes
+
+For fast exploration on large datasets, you can use variational inference via `algorithm = "meanfield"`. This is typically much faster than HMC, but can underestimate uncertainty.
+
+```{r}
+tm_vb <- system.time({
+  fit_vb <- vrcm(
+    mortality = mort,
+    reporting = rep,
+    data = df,
+    t0 = sim_fast$meta$t0,
+    algorithm = "meanfield",
+    seed = 123,
+    refresh = 0
+  )
+})
+
+print(fit_vb)
+
+tm_vb
+```
+
+## Region-varying conflict slopes
+
+Allowing conflict effects to vary by region can be important, but it adds latent structure.
+
+```{r}
+mort_conf_region <- vrc_mortality(~ 1, conflict = "region")
+rep_conf_region  <- vrc_reporting(~ 1, conflict = "region")
+
+tm_conf_region <- system.time({
+  fit_conf_region <- vrcm(
+    mortality = mort_conf_region,
+    reporting = rep_conf_region,
+    data = df,
+    t0 = sim_fast$meta$t0,
+    chains = 2,
+    iter = 200,
+    seed = 123,
+    refresh = 0
+  )
+})
+
+tm_conf_region
+
+print(fit_conf_region)
+```
+
+## Runtime summary
+
+```{r}
+runtime <- data.frame(
+  model = c(
+    "base",
+    "rho=1 pre-conflict",
+    "region time deviations",
+    "collapsed ages (3)",
+    "VB (meanfield)",
+    "region-varying conflict"
+  ),
+  elapsed_seconds = c(
+    unname(tm_base["elapsed"]),
+    unname(tm_rho1["elapsed"]),
+    unname(tm_region_time["elapsed"]),
+    unname(tm_age3["elapsed"]),
+    unname(tm_vb["elapsed"]),
+    unname(tm_conf_region["elapsed"])
+  ),
+  row.names = NULL
+)
+
+runtime
+```
+
+## Summary
+
+Key practical levers for speed:
+
+- use `time = "national"` unless you need region-specific deviations
+- consider collapsing age groups for early exploration
+- consider anchoring pre-conflict reporting to `rho = 1` if it is a defensible assumption
+- use `algorithm = "meanfield"` for rapid first-pass fits
