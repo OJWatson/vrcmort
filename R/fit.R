@@ -66,6 +66,41 @@ vrc_fit <- function(
   algorithm <- match.arg(algorithm)
   backend <- match.arg(backend)
 
+  dots <- list(...)
+  pre_conflict_reporting <- dots$pre_conflict_reporting
+  generated_quantities <- dots$generated_quantities
+  dots$pre_conflict_reporting <- NULL
+  dots$generated_quantities <- NULL
+
+  if (is.null(pre_conflict_reporting)) pre_conflict_reporting <- "estimate"
+  if (is.null(generated_quantities)) generated_quantities <- "full"
+
+  pre_conflict_reporting <- match.arg(as.character(pre_conflict_reporting)[1], c("estimate", "fixed1"))
+  generated_quantities <- match.arg(as.character(generated_quantities)[1], c("full", "none"))
+
+  if (!missing(stan_model) && (
+    !identical(pre_conflict_reporting, "estimate") ||
+    !identical(generated_quantities, "full")
+  )) {
+    stop(
+      "Do not supply both stan_model and pre_conflict_reporting/generated_quantities. ",
+      "Either set stan_model explicitly, or omit it and use the switches.",
+      call. = FALSE
+    )
+  }
+
+  if (missing(stan_model)) {
+    if (identical(pre_conflict_reporting, "estimate") && identical(generated_quantities, "full")) {
+      stan_model <- "vr_reporting_model"
+    } else if (identical(pre_conflict_reporting, "fixed1") && identical(generated_quantities, "full")) {
+      stan_model <- "vr_reporting_model_rho1_pre"
+    } else if (identical(pre_conflict_reporting, "estimate") && identical(generated_quantities, "none")) {
+      stan_model <- "vr_reporting_model_nogq"
+    } else if (identical(pre_conflict_reporting, "fixed1") && identical(generated_quantities, "none")) {
+      stan_model <- "vr_reporting_model_rho1_pre_nogq"
+    }
+  }
+
   sdat_obj <- vrc_standata(
     data = data,
     t0 = t0,
@@ -84,7 +119,6 @@ vrc_fit <- function(
   )
 
   # Allow chains = 0 returns standata
-  dots <- list(...)
   if (!is.null(dots$chains) && identical(dots$chains, 0)) {
     return(sdat_obj)
   }
