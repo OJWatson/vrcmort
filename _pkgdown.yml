@@ -57,4 +57,5 @@ articles:
   contents:
   - tutorial-data-prep
   - tutorial-covariates-pooling
+  - fast-fitting
   - missingness

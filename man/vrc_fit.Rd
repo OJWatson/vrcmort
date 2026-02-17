@@ -19,6 +19,7 @@ vrc_fit(
   duplicates = c("error", "sum"),
   algorithm = c("sampling", "meanfield", "fullrank"),
   priors = NULL,
+  age_drop_cause = NULL,
   prior_PD = FALSE,
   backend = c("rstan"),
   stan_model = "vr_reporting_model",
@@ -65,6 +66,8 @@ fitting.}
 
 \item{priors}{Optional prior specification created by \code{\link[=vrc_priors]{vrc_priors()}}. If
 \code{NULL} (default), uses \code{\link[=vrc_priors]{vrc_priors()}} with package defaults.}
+
+\item{age_drop_cause}{Which cause should the age reporting breakdown occur in. Defaults to NULL which uses 2nd cause or the first if there is only one.}
 
 \item{prior_PD}{Logical. If TRUE, samples from the prior distribution (no likelihood).}
 
