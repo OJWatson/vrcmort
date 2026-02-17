@@ -70,6 +70,6 @@
   // Age-selective reporting penalty (half-normal via <lower=0>)
   delta_age_incr ~ normal(0, prior_delta_age_incr_scale);
   delta_age_scale ~ normal(0, prior_delta_age_scale_scale);
-
+  
   // Dispersion (NB2)
   phi ~ exponential(prior_phi_rate);

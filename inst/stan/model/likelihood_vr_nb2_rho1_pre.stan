@@ -27,7 +27,7 @@
                      + rep_x;
 
       // age-selective drop for non-trauma only (assume g==2)
-      if (g == 2) {
+      if (g == age_drop_cause) {
         logit_rho += - delta_age[age[i]] * post[time[i]];
       }
 
