@@ -37,7 +37,7 @@ We use a small dataset that is still large enough for speed differences between 
 - conflict begins at time `r t0_sim` (`r t0_sim - 1` pre, `r T_sim - (t0_sim - 1)` post)
 - `r length(age_breaks_sim) - 1` age groups
 
-```{r}
+```{r, eval=FALSE}
 library(vrcmort)
 
 sim_fast <- vrc_simulate(
@@ -55,7 +55,7 @@ df <- sim_fast$df_obs
 head(df)
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Standata dimensions for reference
 sd <- vrc_fit(
   data = df,
@@ -86,7 +86,7 @@ We run exactly six fits:
 - quickest model (A+B+C+D disabled)
 - full model minus one component: -A, -B, -C, -D
 
-```{r}
+```{r, eval=FALSE}
 invisible(vrc_model("vr_reporting_model"))
 invisible(vrc_model("vr_reporting_model_rho1_pre"))
 invisible(vrc_model("vr_reporting_model_nogq"))
