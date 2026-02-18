@@ -4,6 +4,8 @@
 
 - **OJ Watson**. Author, maintainer.
 
+- **Greg Barnsley**. Author.
+
 ## Citation
 
 Source:

@@ -210,40 +210,82 @@ With only VR counts, `λ` and `ρ` are partially confounded because
 
 ## The R package interface
 
-### Core user-facing functions
+The package provides a high-level interface inspired by `epidemia` and
+`rstanarm`, allowing users to specify model components separately.
 
-- [`vrc_simulate()`](https://github.com/OJWatson/vrcmort/reference/vrc_simulate.md)
-  creates simulated VR long datasets with configurable:
-  - mortality and reporting parameters,
-  - misclassification (simulator),
-  - additional missingness patterns: block, age-selective, MNAR,
-    combined.
-- [`vrc_validate_data()`](https://github.com/OJWatson/vrcmort/reference/vrc_validate_data.md)
-  checks the VR long format integrity.
-- [`vrc_diagnose_reporting()`](https://github.com/OJWatson/vrcmort/reference/vrc_diagnose_reporting.md)
-  provides quick plots to detect reporting artefacts.
-- [`vrc_fit()`](https://github.com/OJWatson/vrcmort/reference/vrc_fit.md)
-  fits the base model (and extensions) via rstan.
-- [`vrcm()`](https://github.com/OJWatson/vrcmort/reference/vrcm.md)
-  provides an epidemia-like wrapper that takes mortality and reporting
-  components.
+### High-level interface: `vrcm()`
 
-### Model extension controls (package-level)
+The main user-facing function is
+[`vrcm()`](https://github.com/OJWatson/vrcmort/reference/vrcm.md), which
+constructs and fits the model from two key components:
 
-The package supports toggles via the user interface: - random slopes of
-conflict by region (mortality and/or reporting) - region-specific time
-RW deviations (mortality and/or reporting)
+- `vrcm(mortality = ..., reporting = ..., data = ..., t0 = ...)`
 
-Users can explore how covariates and pooling alter inference without
-editing Stan.
+The `mortality` and `reporting` components are specified using helper
+functions.
+
+- **`vrc_mortality(formula, conflict, time)`**: Defines the latent
+  mortality model.
+- **`vrc_reporting(formula, conflict, time)`**: Defines the reporting
+  process model.
+
+Each component allows specification of: - `formula`: A formula for
+additional covariates (e.g., `~ food_insecurity`). - `conflict`: How to
+model the conflict effect. - `"fixed"` (default): A single effect across
+all regions. - `"region"`: Partial pooling with region-specific random
+slopes. - `time`: How to model time trends. - `"national"` (default): A
+single random walk across all regions. - `"region"`: Region-specific
+random walk deviations around the national trend.
+
+### Key Model Specification Options
+
+The fitting process can be controlled with several key arguments passed
+through
+[`vrcm()`](https://github.com/OJWatson/vrcmort/reference/vrcm.md) to the
+lower-level
+[`vrc_fit()`](https://github.com/OJWatson/vrcmort/reference/vrc_fit.md)
+function:
+
+- **`pre_conflict_reporting`**: Controls the assumption about reporting
+  before the conflict start time `t0`.
+  - `"estimate"` (default): Estimate pre-conflict reporting completeness
+    (`rho`) from the data.
+  - `"fixed1"`: Assume pre-conflict reporting was 100% complete
+    (`rho = 1`). This is a strong assumption that can help with model
+    stability if pre-conflict data is reliable. This switch selects a
+    Stan model with `_rho1_pre` in the name.
+- **`generated_quantities`**: Controls the Stan generated quantities
+  block for performance.
+  - `"full"` (default): Computes all posterior quantities, including
+    `log_lik` for model comparison (e.g., `loo`).
+  - `"none"`: Skips the generated quantities block for faster sampling.
+    This is useful when only parameter estimates are needed. This switch
+    selects a Stan model with `_nogq` in the name.
+- **`prior_PD`**: If `TRUE`, samples from the prior distribution only,
+  ignoring the likelihood. This is useful for prior predictive checks.
+
+### Other Core Functions
+
+- [`vrc_simulate()`](https://github.com/OJWatson/vrcmort/reference/vrc_simulate.md):
+  Creates simulated VR long datasets to test model performance.
+- [`vrc_validate_data()`](https://github.com/OJWatson/vrcmort/reference/vrc_validate_data.md):
+  Checks the integrity of the input data format.
+- [`vrc_priors()`](https://github.com/OJWatson/vrcmort/reference/vrc_priors.md):
+  Specify or modify priors on model parameters.
+- [`vrc_fit()`](https://github.com/OJWatson/vrcmort/reference/vrc_fit.md):
+  The lower-level fitting function that
+  [`vrcm()`](https://github.com/OJWatson/vrcmort/reference/vrcm.md)
+  calls internally. It provides more direct control over model
+  specification.
 
 ### Custom Stan workflow
 
-Advanced users can: - copy the modular Stan model to a local
-directory, - edit a specific include file (for example the reporting
-linear predictor), - fit via
-`vrc_fit(stan_model = "path/to/model.stan")`, - keep using package
-standata builders and posterior extractors via a `model_spec`.
+Advanced users can extend the package by: 1. Copying the modular Stan
+model to a local directory. 2. Editing a specific `.stan` include file
+(e.g., the reporting linear predictor). 3. Fitting the custom model via
+`vrc_fit(stan_model = "path/to/model.stan")`. This allows for custom
+model development while still using the package’s data preparation and
+posterior extraction tools.
 
 ------------------------------------------------------------------------
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">vrcmort</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -147,31 +147,53 @@
 </ul><hr></div>
 <div class="section level2">
 <h2 id="the-r-package-interface">The R package interface<a class="anchor" aria-label="anchor" href="#the-r-package-interface"></a></h2>
+<p>The package provides a high-level interface inspired by <code>epidemia</code> and <code>rstanarm</code>, allowing users to specify model components separately.</p>
 <div class="section level3">
-<h3 id="core-user-facing-functions">Core user-facing functions<a class="anchor" aria-label="anchor" href="#core-user-facing-functions"></a></h3>
+<h3 id="high-level-interface-vrcm">High-level interface: <code>vrcm()</code>
+<a class="anchor" aria-label="anchor" href="#high-level-interface-vrcm"></a></h3>
+<p>The main user-facing function is <code><a href="reference/vrcm.html">vrcm()</a></code>, which constructs and fits the model from two key components:</p>
+<ul><li><code>vrcm(mortality = ..., reporting = ..., data = ..., t0 = ...)</code></li>
+</ul><p>The <code>mortality</code> and <code>reporting</code> components are specified using helper functions.</p>
 <ul><li>
-<code><a href="reference/vrc_simulate.html">vrc_simulate()</a></code> creates simulated VR long datasets with configurable:
-<ul><li>mortality and reporting parameters,</li>
-<li>misclassification (simulator),</li>
-<li>additional missingness patterns: block, age-selective, MNAR, combined.</li>
-</ul></li>
+<strong><code>vrc_mortality(formula, conflict, time)</code></strong>: Defines the latent mortality model.</li>
 <li>
-<code><a href="reference/vrc_validate_data.html">vrc_validate_data()</a></code> checks the VR long format integrity.</li>
-<li>
-<code><a href="reference/vrc_diagnose_reporting.html">vrc_diagnose_reporting()</a></code> provides quick plots to detect reporting artefacts.</li>
-<li>
-<code><a href="reference/vrc_fit.html">vrc_fit()</a></code> fits the base model (and extensions) via rstan.</li>
-<li>
-<code><a href="reference/vrcm.html">vrcm()</a></code> provides an epidemia-like wrapper that takes mortality and reporting components.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="model-extension-controls-package-level">Model extension controls (package-level)<a class="anchor" aria-label="anchor" href="#model-extension-controls-package-level"></a></h3>
-<p>The package supports toggles via the user interface: - random slopes of conflict by region (mortality and/or reporting) - region-specific time RW deviations (mortality and/or reporting)</p>
-<p>Users can explore how covariates and pooling alter inference without editing Stan.</p>
+<strong><code>vrc_reporting(formula, conflict, time)</code></strong>: Defines the reporting process model.</li>
+</ul><p>Each component allows specification of: - <code>formula</code>: A formula for additional covariates (e.g., <code>~ food_insecurity</code>). - <code>conflict</code>: How to model the conflict effect. - <code>"fixed"</code> (default): A single effect across all regions. - <code>"region"</code>: Partial pooling with region-specific random slopes. - <code>time</code>: How to model time trends. - <code>"national"</code> (default): A single random walk across all regions. - <code>"region"</code>: Region-specific random walk deviations around the national trend.</p>
 </div>
 <div class="section level3">
+<h3 id="key-model-specification-options">Key Model Specification Options<a class="anchor" aria-label="anchor" href="#key-model-specification-options"></a></h3>
+<p>The fitting process can be controlled with several key arguments passed through <code><a href="reference/vrcm.html">vrcm()</a></code> to the lower-level <code><a href="reference/vrc_fit.html">vrc_fit()</a></code> function:</p>
+<ul><li>
+<strong><code>pre_conflict_reporting</code></strong>: Controls the assumption about reporting before the conflict start time <code>t0</code>.
+<ul><li>
+<code>"estimate"</code> (default): Estimate pre-conflict reporting completeness (<code>rho</code>) from the data.</li>
+<li>
+<code>"fixed1"</code>: Assume pre-conflict reporting was 100% complete (<code>rho = 1</code>). This is a strong assumption that can help with model stability if pre-conflict data is reliable. This switch selects a Stan model with <code>_rho1_pre</code> in the name.</li>
+</ul></li>
+<li>
+<strong><code>generated_quantities</code></strong>: Controls the Stan generated quantities block for performance.
+<ul><li>
+<code>"full"</code> (default): Computes all posterior quantities, including <code>log_lik</code> for model comparison (e.g., <code>loo</code>).</li>
+<li>
+<code>"none"</code>: Skips the generated quantities block for faster sampling. This is useful when only parameter estimates are needed. This switch selects a Stan model with <code>_nogq</code> in the name.</li>
+</ul></li>
+<li>
+<strong><code>prior_PD</code></strong>: If <code>TRUE</code>, samples from the prior distribution only, ignoring the likelihood. This is useful for prior predictive checks.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-core-functions">Other Core Functions<a class="anchor" aria-label="anchor" href="#other-core-functions"></a></h3>
+<ul><li>
+<code><a href="reference/vrc_simulate.html">vrc_simulate()</a></code>: Creates simulated VR long datasets to test model performance.</li>
+<li>
+<code><a href="reference/vrc_validate_data.html">vrc_validate_data()</a></code>: Checks the integrity of the input data format.</li>
+<li>
+<code><a href="reference/vrc_priors.html">vrc_priors()</a></code>: Specify or modify priors on model parameters.</li>
+<li>
+<code><a href="reference/vrc_fit.html">vrc_fit()</a></code>: The lower-level fitting function that <code><a href="reference/vrcm.html">vrcm()</a></code> calls internally. It provides more direct control over model specification.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="custom-stan-workflow">Custom Stan workflow<a class="anchor" aria-label="anchor" href="#custom-stan-workflow"></a></h3>
-<p>Advanced users can: - copy the modular Stan model to a local directory, - edit a specific include file (for example the reporting linear predictor), - fit via <code>vrc_fit(stan_model = "path/to/model.stan")</code>, - keep using package standata builders and posterior extractors via a <code>model_spec</code>.</p>
+<p>Advanced users can extend the package by: 1. Copying the modular Stan model to a local directory. 2. Editing a specific <code>.stan</code> include file (e.g., the reporting linear predictor). 3. Fitting the custom model via <code>vrc_fit(stan_model = "path/to/model.stan")</code>. This allows for custom model development while still using the package’s data preparation and posterior extraction tools.</p>
 <hr></div>
 </div>
 <div class="section level2">
@@ -221,7 +243,7 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p>Developed by OJ Watson.</p>
+  <p>Developed by OJ Watson, Greg Barnsley.</p>
 </div>
 
 <div class="pkgdown-footer-right">
