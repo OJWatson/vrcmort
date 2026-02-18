@@ -26,7 +26,7 @@
                      + gamma_conf_rg[region[i], g] * conflict[i]
                      + rep_x;
 
-      // age-selective drop for non-trauma only (assume g==2)
+      // age-selective drop applied only to the configured cause (g == age_drop_cause)
       if (g == age_drop_cause) {
         logit_rho += - delta_age[age[i]] * post[time[i]];
       }

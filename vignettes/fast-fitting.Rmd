@@ -213,5 +213,5 @@ r_minus_D <- run_one(
 runtime <- rbind(r_full, r_quick, r_minus_A, r_minus_B, r_minus_C, r_minus_D)
 runtime$speedup_vs_full <- runtime$total_seconds[1] / runtime$total_seconds
 runtime
-runtime
+
 ```
