@@ -1,3 +1,8 @@
+# vrcmort 0.0.9
+
+- Added `pre_conflict_reporting` option to `vrc_fit()` to control model assumptions, allowing pre-conflict reporting to be estimated or fixed to 1.
+- Added `generated_quantities` option to `vrc_fit()` for performance, allowing the GQ block to be skipped for faster sampling.
+
 # vrcmort 0.0.8
 
 - pkgdown website referencing completed
