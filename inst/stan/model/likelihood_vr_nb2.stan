@@ -32,7 +32,7 @@
         logit_rho += - delta_age[age[i]] * post[time[i]];
       }
 
-      real mu = exposure[i] * exp(log_lambda) * inv_logit(logit_rho);
-      y[i] ~ neg_binomial_2(mu, phi[g]);
+      real log_mu = log_exposure[i] + log_lambda + log_inv_logit(logit_rho);
+      y[i] ~ neg_binomial_2_log(log_mu, phi[g]);
     }
   }

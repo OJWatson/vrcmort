@@ -10,3 +10,4 @@
 ^PROJECT_OVERVIEW\.md$
 ^inst/stan/vr_reporting_model\.rds$
 ^\.Rhistory$
+^.gemini$
