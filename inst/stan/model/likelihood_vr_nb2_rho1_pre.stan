@@ -31,14 +31,14 @@
         logit_rho += - delta_age[age[i]] * post[time[i]];
       }
 
-      real mu;
+      real log_mu;
       if (post[time[i]] == 0) {
-        // Pre-conflict reporting fixed to 1
-        mu = exposure[i] * exp(log_lambda);
+        // Pre-conflict reporting fixed to 1 (log(1) = 0)
+        log_mu = log_exposure[i] + log_lambda;
       } else {
-        mu = exposure[i] * exp(log_lambda) * inv_logit(logit_rho);
+        log_mu = log_exposure[i] + log_lambda + log_inv_logit(logit_rho);
       }
 
-      y[i] ~ neg_binomial_2(mu, phi[g]);
+      y[i] ~ neg_binomial_2_log(log_mu, phi[g]);
     }
   }

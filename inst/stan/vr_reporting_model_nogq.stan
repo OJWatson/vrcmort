@@ -8,6 +8,10 @@ data {
 #include "data/data_vr.stan"
 }
 
+transformed data {
+#include "data/tdata_vr.stan"
+}
+
 parameters {
 #include "parameters/parameters_vr.stan"
 }

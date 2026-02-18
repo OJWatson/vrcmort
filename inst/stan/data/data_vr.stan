@@ -1,4 +1,4 @@
-  int<lower=1> N;                      // number of observed cells
+int<lower=1> N;                      // number of observed cells
   int<lower=1> R;
   int<lower=1> T;
   int<lower=1> A;
