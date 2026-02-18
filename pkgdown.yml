@@ -13,7 +13,7 @@ articles:
   tutorial-covariates-pooling: tutorial-covariates-pooling.html
   tutorial-data-prep: tutorial-data-prep.html
   underreporting-age: underreporting-age.html
-last_built: 2026-02-18T17:23Z
+last_built: 2026-02-18T21:10Z
 urls:
   reference: https://github.com/OJWatson/vrcmort/reference
   article: https://github.com/OJWatson/vrcmort/articles
