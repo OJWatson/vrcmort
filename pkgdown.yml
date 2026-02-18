@@ -2,6 +2,7 @@ pandoc: 3.1.11
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
+  fast-fitting: fast-fitting.html
   missingness: missingness.html
   model-description: model-description.html
   model-implementation: model-implementation.html
@@ -12,7 +13,7 @@ articles:
   tutorial-covariates-pooling: tutorial-covariates-pooling.html
   tutorial-data-prep: tutorial-data-prep.html
   underreporting-age: underreporting-age.html
-last_built: 2026-02-02T07:53Z
+last_built: 2026-02-18T16:56Z
 urls:
   reference: https://github.com/OJWatson/vrcmort/reference
   article: https://github.com/OJWatson/vrcmort/articles

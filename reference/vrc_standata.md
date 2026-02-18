@@ -37,7 +37,8 @@ vrc_standata(
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
   priors = NULL,
-  prior_PD = FALSE
+  prior_PD = FALSE,
+  age_drop_cause = NULL
 )
 ```
 
@@ -117,6 +118,11 @@ vrc_standata(
 
   Logical. If TRUE, Stan ignores the likelihood and samples from the
   prior. Useful for prior predictive checks.
+
+- age_drop_cause:
+
+  Which cause should the age reporting breakdown occur in. Defaults to
+  NULL which uses 2nd cause or the first if there is only one.
 
 ## Value
 

@@ -58,6 +58,7 @@ The model is implemented in Stan and is fit using <code>rstan</code>.</p>
 <span>  duplicates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"error"</span>, <span class="st">"sum"</span><span class="op">)</span>,</span>
 <span>  algorithm <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sampling"</span>, <span class="st">"meanfield"</span>, <span class="st">"fullrank"</span><span class="op">)</span>,</span>
 <span>  priors <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  age_drop_cause <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  prior_PD <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  backend <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rstan"</span><span class="op">)</span>,</span>
 <span>  stan_model <span class="op">=</span> <span class="st">"vr_reporting_model"</span>,</span>
@@ -135,6 +136,10 @@ fitting.</p></dd>
 <dt id="arg-priors">priors<a class="anchor" aria-label="anchor" href="#arg-priors"></a></dt>
 <dd><p>Optional prior specification created by <code><a href="vrc_priors.html">vrc_priors()</a></code>. If
 <code>NULL</code> (default), uses <code><a href="vrc_priors.html">vrc_priors()</a></code> with package defaults.</p></dd>
+
+
+<dt id="arg-age-drop-cause">age_drop_cause<a class="anchor" aria-label="anchor" href="#arg-age-drop-cause"></a></dt>
+<dd><p>Which cause should the age reporting breakdown occur in. Defaults to NULL which uses 2nd cause or the first if there is only one.</p></dd>
 
 
 <dt id="arg-prior-pd">prior_PD<a class="anchor" aria-label="anchor" href="#arg-prior-pd"></a></dt>

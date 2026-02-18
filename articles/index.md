@@ -22,5 +22,7 @@
   records](https://github.com/OJWatson/vrcmort/articles/tutorial-data-prep.md):
 - [Tutorial: exploring covariates and
   pooling](https://github.com/OJWatson/vrcmort/articles/tutorial-covariates-pooling.md):
+- [Fast Fitting
+  Strategies](https://github.com/OJWatson/vrcmort/articles/fast-fitting.md):
 - [Stress testing under different missingness
   mechanisms](https://github.com/OJWatson/vrcmort/articles/missingness.md):

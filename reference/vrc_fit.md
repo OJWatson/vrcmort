@@ -21,6 +21,7 @@ vrc_fit(
   duplicates = c("error", "sum"),
   algorithm = c("sampling", "meanfield", "fullrank"),
   priors = NULL,
+  age_drop_cause = NULL,
   prior_PD = FALSE,
   backend = c("rstan"),
   stan_model = "vr_reporting_model",
@@ -104,6 +105,11 @@ vrc_fit(
   If `NULL` (default), uses
   [`vrc_priors()`](https://github.com/OJWatson/vrcmort/reference/vrc_priors.md)
   with package defaults.
+
+- age_drop_cause:
+
+  Which cause should the age reporting breakdown occur in. Defaults to
+  NULL which uses 2nd cause or the first if there is only one.
 
 - prior_PD:
 
