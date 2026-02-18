@@ -18,7 +18,8 @@ vrc_standata(
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
   priors = NULL,
-  prior_PD = FALSE
+  prior_PD = FALSE,
+  age_drop_cause = NULL
 )
 }
 \arguments{
@@ -65,6 +66,8 @@ are also standardised. Defaults to FALSE.}
 
 \item{prior_PD}{Logical. If TRUE, Stan ignores the likelihood and samples from
 the prior. Useful for prior predictive checks.}
+
+\item{age_drop_cause}{Which cause should the age reporting breakdown occur in. Defaults to NULL which uses 2nd cause or the first if there is only one.}
 }
 \value{
 A list with components:

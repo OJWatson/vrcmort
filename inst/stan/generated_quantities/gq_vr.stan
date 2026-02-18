@@ -29,7 +29,7 @@
                    + gamma_conf_rg[region[i], g] * conflict[i]
                    + rep_x;
 
-    if (g == 2) {
+    if (g == age_drop_cause) {
       logit_rho += - delta_age[age[i]] * post[time[i]];
     }
 

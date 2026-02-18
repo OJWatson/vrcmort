@@ -30,6 +30,7 @@
 #' @param algorithm One of `"sampling"`, `"meanfield"`, or `"fullrank"` (passed to `rstan`).
 #' @param priors Optional prior specification created by [vrc_priors()]. If
 #'   `NULL` (default), uses [vrc_priors()] with package defaults.
+#' @param age_drop_cause Which cause should the age reporting breakdown occur in. Defaults to NULL which uses 2nd cause or the first if there is only one.
 #' @param prior_PD Logical. If TRUE, samples from the prior distribution (no likelihood).
 #' @param backend Backend to use. Currently only `"rstan"` is supported.
 #' @param stan_model Stan model name. Defaults to `"vr_reporting_model"`.
@@ -52,6 +53,7 @@ vrc_fit <- function(
   duplicates = c("error", "sum"),
   algorithm = c("sampling", "meanfield", "fullrank"),
   priors = NULL,
+  age_drop_cause = NULL,
   prior_PD = FALSE,
   backend = c("rstan"),
   stan_model = "vr_reporting_model",
@@ -66,6 +68,64 @@ vrc_fit <- function(
   algorithm <- match.arg(algorithm)
   backend <- match.arg(backend)
 
+  dots <- list(...)
+  pre_conflict_reporting <- dots$pre_conflict_reporting
+  generated_quantities <- dots$generated_quantities
+  dots$pre_conflict_reporting <- NULL
+  dots$generated_quantities <- NULL
+
+  if (is.null(pre_conflict_reporting)) {
+    pre_conflict_reporting <- "estimate"
+  }
+  if (is.null(generated_quantities)) {
+    generated_quantities <- "full"
+  }
+
+  pre_conflict_reporting <- match.arg(
+    as.character(pre_conflict_reporting)[1],
+    c("estimate", "fixed1")
+  )
+  generated_quantities <- match.arg(
+    as.character(generated_quantities)[1],
+    c("full", "none")
+  )
+
+  if (
+    !missing(stan_model) &&
+      (!identical(pre_conflict_reporting, "estimate") ||
+        !identical(generated_quantities, "full"))
+  ) {
+    stop(
+      "Do not supply both stan_model and pre_conflict_reporting/generated_quantities. ",
+      "Either set stan_model explicitly, or omit it and use the switches.",
+      call. = FALSE
+    )
+  }
+
+  if (missing(stan_model)) {
+    if (
+      identical(pre_conflict_reporting, "estimate") &&
+        identical(generated_quantities, "full")
+    ) {
+      stan_model <- "vr_reporting_model"
+    } else if (
+      identical(pre_conflict_reporting, "fixed1") &&
+        identical(generated_quantities, "full")
+    ) {
+      stan_model <- "vr_reporting_model_rho1_pre"
+    } else if (
+      identical(pre_conflict_reporting, "estimate") &&
+        identical(generated_quantities, "none")
+    ) {
+      stan_model <- "vr_reporting_model_nogq"
+    } else if (
+      identical(pre_conflict_reporting, "fixed1") &&
+        identical(generated_quantities, "none")
+    ) {
+      stan_model <- "vr_reporting_model_rho1_pre_nogq"
+    }
+  }
+
   sdat_obj <- vrc_standata(
     data = data,
     t0 = t0,
@@ -77,6 +137,7 @@ vrc_fit <- function(
     reporting_time = reporting_time,
     standardise = standardise,
     scale_binary = scale_binary,
+    age_drop_cause = age_drop_cause,
     drop_na_y = drop_na_y,
     duplicates = duplicates,
     priors = priors,
@@ -84,7 +145,6 @@ vrc_fit <- function(
   )
 
   # Allow chains = 0 returns standata
-  dots <- list(...)
   if (!is.null(dots$chains) && identical(dots$chains, 0)) {
     return(sdat_obj)
   }
@@ -102,7 +162,9 @@ vrc_fit <- function(
   }
 
   # default init_r helps avoid extreme initialisation
-  if (is.null(dots$init_r)) dots$init_r <- 1e-6
+  if (is.null(dots$init_r)) {
+    dots$init_r <- 1e-6
+  }
 
   args <- c(
     dots,
@@ -143,16 +205,34 @@ vrc_fit <- function(
 print.vrcfit <- function(x, ...) {
   cat("vrcmort model fit\n")
   cat("- Stan model:", x$stan_model, "\n")
-  if (!is.null(x$stan_file)) cat("- Stan file:", x$stan_file, "\n")
+  if (!is.null(x$stan_file)) {
+    cat("- Stan file:", x$stan_file, "\n")
+  }
   cat("- Algorithm:", x$algorithm, "\n")
   cat("- N (observed cells):", x$standata$N, "\n")
-  cat("- Dimensions: R=", x$standata$R, ", T=", x$standata$T, ", A=", x$standata$A,
-      ", S=", x$standata$S, ", G=", x$standata$G, "\n", sep = "")
+  cat(
+    "- Dimensions: R=",
+    x$standata$R,
+    ", T=",
+    x$standata$T,
+    ", A=",
+    x$standata$A,
+    ", S=",
+    x$standata$S,
+    ", G=",
+    x$standata$G,
+    "\n",
+    sep = ""
+  )
   invisible(x)
 }
 
 #' @export
-summary.vrcfit <- function(object, pars = c("beta_conf", "kappa0", "kappa_post", "gamma_conf", "phi"), ...) {
+summary.vrcfit <- function(
+  object,
+  pars = c("beta_conf", "kappa0", "kappa_post", "gamma_conf", "phi"),
+  ...
+) {
   if (!requireNamespace("rstan", quietly = TRUE)) {
     stop("Package 'rstan' is required", call. = FALSE)
   }

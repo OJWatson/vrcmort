@@ -46,6 +46,7 @@
 #'   `"error"` (default) or `"sum"`.
 #' @param priors Optional prior specification created by [vrc_priors()]. If
 #'   `NULL` (default), uses [vrc_priors()] with package defaults.
+#' @param age_drop_cause Which cause should the age reporting breakdown occur in. Defaults to NULL which uses 2nd cause or the first if there is only one.
 #' @param prior_PD Logical. If TRUE, Stan ignores the likelihood and samples from
 #'   the prior. Useful for prior predictive checks.
 #'
@@ -71,7 +72,8 @@ vrc_standata <- function(
   drop_na_y = TRUE,
   duplicates = c("error", "sum"),
   priors = NULL,
-  prior_PD = FALSE
+  prior_PD = FALSE,
+  age_drop_cause = NULL
 ) {
   stopifnot(is.data.frame(data))
   duplicates <- match.arg(duplicates)
@@ -120,8 +122,12 @@ vrc_standata <- function(
     df <- df[!is.na(df$y), , drop = FALSE]
   }
 
-  if (any(is.na(df$y))) stop("y contains NA after drop_na_y=TRUE", call. = FALSE)
-  if (any(df$y < 0)) stop("y must be non-negative", call. = FALSE)
+  if (any(is.na(df$y))) {
+    stop("y contains NA after drop_na_y=TRUE", call. = FALSE)
+  }
+  if (any(df$y < 0)) {
+    stop("y must be non-negative", call. = FALSE)
+  }
   check_positive(df$exposure, "exposure")
 
   # Standardise conflict
@@ -142,8 +148,16 @@ vrc_standata <- function(
     X_mort <- standardise_matrix(X_mort, scale_binary = scale_binary)
     X_rep <- standardise_matrix(X_rep, scale_binary = scale_binary)
   } else {
-    attr(X_mort, "scaling") <- list(centre = rep(0, ncol(X_mort)), scale = rep(1, ncol(X_mort)), colnames = colnames(X_mort))
-    attr(X_rep, "scaling") <- list(centre = rep(0, ncol(X_rep)), scale = rep(1, ncol(X_rep)), colnames = colnames(X_rep))
+    attr(X_mort, "scaling") <- list(
+      centre = rep(0, ncol(X_mort)),
+      scale = rep(1, ncol(X_mort)),
+      colnames = colnames(X_mort)
+    )
+    attr(X_rep, "scaling") <- list(
+      centre = rep(0, ncol(X_rep)),
+      scale = rep(1, ncol(X_rep)),
+      colnames = colnames(X_rep)
+    )
   }
 
   R <- meta$R
@@ -152,22 +166,27 @@ vrc_standata <- function(
   S <- meta$S
   G <- meta$G
 
-  if (G < 2) {
-    stop(
-      "The current Stan model assumes at least 2 cause groups (for example, trauma and non-trauma). ",
-      call. = FALSE
-    )
-  }
-
-  if (G > 2) {
-    warning(
-      "G > 2 detected. The shipped Stan model applies the age-selective reporting penalty only to cause==2. ",
-      "Check that your cause coding matches this assumption.",
-      call. = FALSE
-    )
-  }
-
   post <- as.integer(seq_len(T) >= meta$t0)
+
+  if (is.null(age_drop_cause)) {
+    age_drop_cause <- min(G, 2)
+  }
+
+  if (
+    !is.numeric(age_drop_cause) ||
+      length(age_drop_cause) != 1L ||
+      is.na(age_drop_cause) ||
+      age_drop_cause < 1 ||
+      age_drop_cause > G ||
+      age_drop_cause != as.integer(age_drop_cause)
+  ) {
+    stop(
+      "age_drop_cause must be a single integer between 1 and G (",
+      G,
+      ").",
+      call. = FALSE
+    )
+  }
 
   standata <- list(
     N = nrow(df),
@@ -176,11 +195,11 @@ vrc_standata <- function(
     A = A,
     S = S,
     G = G,
-    region = as.integer(df$region_id),
-    time = as.integer(df$time_id),
-    age = as.integer(df$age_id),
-    sex = as.integer(df$sex_id),
-    cause = as.integer(df$cause_id),
+    region = as_stan_array_int(df$region_id),
+    time = as_stan_array_int(df$time_id),
+    age = as_stan_array_int(df$age_id),
+    sex = as_stan_array_int(df$sex_id),
+    cause = as_stan_array_int(df$cause_id),
     y = as.integer(df$y),
     exposure = as.numeric(df$exposure),
     conflict = as.numeric(df$conflict_z),
@@ -188,11 +207,12 @@ vrc_standata <- function(
     use_gamma_conf_re = as.integer(reporting_conflict == "region"),
     use_rw_region_lambda = as.integer(mortality_time == "region"),
     use_rw_region_rho = as.integer(reporting_time == "region"),
+    age_drop_cause = as.integer(age_drop_cause),
     K_mort = ncol(X_mort),
     X_mort = X_mort,
     K_rep = ncol(X_rep),
     X_rep = X_rep,
-    post = post,
+    post = as_stan_array_int(post),
     t0 = as.integer(meta$t0),
     prior_PD = as.integer(prior_PD)
   )

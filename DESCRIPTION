@@ -1,6 +1,8 @@
 Package: vrcmort
 Title: Hierarchical Bayesian Models for Vital Registration Mortality with Reporting Processes
 Version: 0.0.8
+Author: OJ Watson [aut, cre]
+Maintainer: OJ Watson <o.watson15@imperial.ac.uk>
 Authors@R: c(
     person(given = "OJ",
            family = "Watson",

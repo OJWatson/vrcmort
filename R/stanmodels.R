@@ -5,7 +5,12 @@
 #' @return Character vector of model names.
 #' @export
 vrc_model_names <- function() {
-  c("vr_reporting_model")
+  c(
+    "vr_reporting_model",
+    "vr_reporting_model_rho1_pre",
+    "vr_reporting_model_nogq",
+    "vr_reporting_model_rho1_pre_nogq"
+  )
 }
 
 #' Default mapping for core generated quantities

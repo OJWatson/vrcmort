@@ -39,6 +39,9 @@
   // prior predictive mode
   int<lower=0, upper=1> prior_PD;
 
+  // include age reporting breakdown
+  int<lower=1, upper=G> age_drop_cause;
+
   // ----------------------------
   // Prior hyperparameters (supplied by R)
   // ----------------------------
@@ -74,5 +77,5 @@
 
   real<lower=0> prior_delta_age_incr_scale;
   real<lower=0> prior_delta_age_scale_scale;
-
+  
   vector<lower=0>[G] prior_phi_rate;
